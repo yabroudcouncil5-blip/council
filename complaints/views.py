@@ -66,7 +66,7 @@ def review_queue(request):
     if not request.user.is_staff: return JsonResponse({'error':'غير مصرح'}, status=403)
     queryset=Complaint.objects.order_by('-submitted_at')
     if request.user.groups.filter(name='Department Officer').exists(): queryset=queryset.filter(assignments__officer=request.user).distinct()
-    return JsonResponse({'complaints': list(queryset.values('id','reference','title','status','priority','submitted_at'))})
+    return JsonResponse({'complaints': list(queryset.values('id','reference','title','status','submitted_at'))})
 
 @login_required
 def staff_dashboard(request):
