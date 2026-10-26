@@ -19,13 +19,15 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from core.views import health
-from complaints.views import submit_complaint, track_complaint, recovery_request, review_queue, assign_complaint, action_submission, final_review, publish_resolution, public_resolutions, dashboard_report, staff_dashboard
+from complaints.views import complaint_form, tracking_form, submit_complaint, track_complaint, recovery_request, review_queue, assign_complaint, action_submission, final_review, publish_resolution, public_resolutions, dashboard_report, staff_dashboard
 from django.contrib.auth import views as auth_views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', include('website.urls')),
     path('health/', health),
+    path('complaints/submit/', complaint_form),
+    path('complaints/track/', tracking_form),
     path('api/complaints/', submit_complaint),
     path('api/complaints/track/', track_complaint),
     path('api/complaints/recovery/', recovery_request),

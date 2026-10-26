@@ -9,6 +9,19 @@ from django.db import transaction
 from .models import Complaint
 from django.core.validators import validate_email
 
+
+def complaint_form(request):
+    """Render the public complaint form."""
+    from core.models import ComplaintCategory
+    return render(request, 'complaints/submit.html', {
+        'categories': ComplaintCategory.objects.filter(active=True).order_by('name'),
+    })
+
+
+def tracking_form(request):
+    """Render the public complaint tracking form."""
+    return render(request, 'complaints/track.html')
+
 @require_http_methods(['POST'])
 def submit_complaint(request):
     data = request.POST
