@@ -1,0 +1,17 @@
+[Unit]
+Description=Yabroud Django application
+After=network.target
+
+[Service]
+User=yabroud
+Group=www-data
+WorkingDirectory=/srv/yabroud
+EnvironmentFile=/srv/yabroud/.env
+ExecStart=/srv/yabroud/.venv/bin/gunicorn config.wsgi:application -c /srv/yabroud/gunicorn.conf.py
+Restart=always
+RestartSec=5
+PrivateTmp=true
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

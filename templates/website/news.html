@@ -1,0 +1,1 @@
+{% extends 'website/base.html' %}{% block content %}<h1>الأخبار والإعلانات</h1><div class="grid">{% for item in news %}<article class="card"><h2>{{ item.title }}</h2><p>{{ item.body|linebreaks }}</p></article>{% empty %}<article class="card">لا توجد أخبار منشورة حالياً.</article>{% endfor %}</div>{% endblock %}

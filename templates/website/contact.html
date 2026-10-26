@@ -1,0 +1,1 @@
+{% extends 'website/base.html' %}{% block content %}<article class="card"><h1>تواصل معنا</h1><p>العنوان: {{ council.address|default:'يبرود، سوريا' }}</p><p>الهاتف: {{ council.phone }}</p><p>البريد: {{ council.email }}</p></article>{% endblock %}

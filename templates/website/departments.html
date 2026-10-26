@@ -1,0 +1,1 @@
+{% extends 'website/base.html' %}{% block content %}<h1>أقسام البلدية</h1><div class="grid">{% for item in departments %}<article class="card"><h2>{{ item.name }}</h2><p>{{ item.description }}</p></article>{% empty %}<article class="card">سيتم تحديث الأقسام قريباً.</article>{% endfor %}</div>{% endblock %}

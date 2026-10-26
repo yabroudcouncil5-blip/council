@@ -1,0 +1,4 @@
+# Run as the yabroud deployment user. Replace /srv/yabroud and backup paths.
+*/5 * * * * cd /srv/yabroud && /srv/yabroud/.venv/bin/python manage.py notify_overdue >> /var/log/yabroud-notify.log 2>&1
+*/10 * * * * cd /srv/yabroud && /srv/yabroud/.venv/bin/python manage.py health_report >> /var/log/yabroud-health.log 2>&1
+0 2 * * * /srv/yabroud/deploy/backup.sh >> /var/log/yabroud-backup.log 2>&1
