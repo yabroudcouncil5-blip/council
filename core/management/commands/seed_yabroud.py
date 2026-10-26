@@ -12,5 +12,7 @@ class Command(BaseCommand):
         Page.objects.get_or_create(slug='about', defaults={'title':'عن بلدية يبرود','body':'تعمل بلدية يبرود على تقديم الخدمات البلدية وتحسين المدينة.','published':True})
         NewsArticle.objects.get_or_create(title='مرحباً بكم في الموقع الرسمي', defaults={'body':'أطلقنا البوابة الرقمية لتسهيل الوصول إلى خدمات البلدية وتقديم الشكاوى ومتابعتها.','published':True})
         NewsArticle.objects.get_or_create(title='قنوات التواصل مع البلدية', defaults={'body':'يمكنكم استخدام نموذج الشكاوى الإلكتروني أو زيارة صفحة التواصل لإرسال ملاحظاتكم.','published':True})
+        NewsArticle.objects.get_or_create(title='إطلاق بوابة الشكاوى الإلكترونية', defaults={'body':'تتيح البوابة لسكان يبرود إرسال الشكاوى والملاحظات ومتابعة حالتها برقم مرجعي خاص، دون الحاجة إلى إنشاء حساب.','published':True})
+        NewsArticle.objects.get_or_create(title='خطة متابعة الإنارة والطرق', defaults={'body':'تعمل الفرق المختصة على استقبال بلاغات الإنارة وصيانة الطرق وترتيبها حسب الأولوية والموقع.','published':True})
         Page.objects.get_or_create(slug='services', defaults={'title':'الخدمات البلدية','body':'النظافة والبيئة، الطرق والإنارة، المياه والصرف الصحي، والخدمات الإدارية.','published':True})
         self.stdout.write(self.style.SUCCESS('Yabroud development content seeded'))
