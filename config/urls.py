@@ -42,5 +42,8 @@ urlpatterns = [
     path('staff/login/', auth_views.LoginView.as_view(template_name='registration/login.html'), name='login'),
     path('staff/logout/', auth_views.LogoutView.as_view(), name='logout'),
 ]
+admin.site.site_header = 'إدارة بلدية يبرود'
+admin.site.site_title = 'إدارة بلدية يبرود'
+admin.site.index_title = 'لوحة الإدارة'
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
