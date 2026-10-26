@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 
 from pathlib import Path
 import os
+from urllib.parse import urlparse
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -76,7 +77,14 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
-DATABASES = {'default': {'ENGINE': 'django.db.backends.postgresql', 'NAME': os.environ.get('POSTGRES_DB', 'yabroud'), 'USER': os.environ.get('POSTGRES_USER', 'yabroud'), 'PASSWORD': os.environ.get('POSTGRES_PASSWORD', ''), 'HOST': os.environ.get('POSTGRES_HOST', 'localhost'), 'PORT': os.environ.get('POSTGRES_PORT', '5432')}} if os.environ.get('POSTGRES_DB') else {'default': {'ENGINE': 'django.db.backends.sqlite3', 'NAME': BASE_DIR / 'db.sqlite3'}}
+database_url = os.environ.get('DATABASE_URL', '').strip()
+if database_url:
+    parsed_database_url = urlparse(database_url)
+    DATABASES = {'default': {'ENGINE': 'django.db.backends.postgresql', 'NAME': parsed_database_url.path.lstrip('/'), 'USER': parsed_database_url.username or '', 'PASSWORD': parsed_database_url.password or '', 'HOST': parsed_database_url.hostname or '', 'PORT': str(parsed_database_url.port or 5432), 'CONN_MAX_AGE': 60}}
+elif os.environ.get('POSTGRES_DB'):
+    DATABASES = {'default': {'ENGINE': 'django.db.backends.postgresql', 'NAME': os.environ.get('POSTGRES_DB', 'yabroud'), 'USER': os.environ.get('POSTGRES_USER', 'yabroud'), 'PASSWORD': os.environ.get('POSTGRES_PASSWORD', ''), 'HOST': os.environ.get('POSTGRES_HOST', 'localhost'), 'PORT': os.environ.get('POSTGRES_PORT', '5432')}}
+else:
+    DATABASES = {'default': {'ENGINE': 'django.db.backends.sqlite3', 'NAME': BASE_DIR / 'db.sqlite3'}}
 
 
 # Password validation
