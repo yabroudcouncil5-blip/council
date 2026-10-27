@@ -38,11 +38,13 @@ def complaint_form(request):
     })
 
 
+@require_http_methods(['GET', 'POST'])
 def tracking_form(request):
     """Render the public complaint tracking form."""
-    context = {**ctx(), 'tracking_values': request.POST}
-    if request.method == 'POST':
-        context['tracking_result'] = tracking_result(request.POST)
+    data = request.POST if request.method == 'POST' else request.GET
+    context = {**ctx(), 'tracking_values': data}
+    if request.method == 'POST' or 'reference' in data:
+        context['tracking_result'] = tracking_result(data)
         if not context['tracking_result']:
             context['tracking_error'] = 'لم نعثر على شكوى بهذا الرقم. تأكد من الرقم المرجعي الذي حصلت عليه عند إرسال الشكوى، أو تواصل مع البلدية للمساعدة.'
     response = render(request, 'complaints/track.html', context)
@@ -74,9 +76,9 @@ def submit_complaint(request):
         for upload in uploads: ComplaintAttachment.objects.create(complaint=complaint, file=upload, original_name=upload.name)
     return JsonResponse({'reference': complaint.reference, 'status': complaint.status}, status=201)
 
-@require_http_methods(['POST'])
+@require_http_methods(['GET', 'POST'])
 def track_complaint(request):
-    result = tracking_result(request.POST)
+    result = tracking_result(request.POST if request.method == 'POST' else request.GET)
     response = JsonResponse(result if result else {'error': 'بيانات التتبع غير صحيحة'}, status=200 if result else 404, json_dumps_params={'ensure_ascii': False})
     response['Cache-Control'] = 'no-store'
     return response

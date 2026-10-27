@@ -1,7 +1,7 @@
 from django.test import TestCase
 
 # Create your tests here.
-from django.test import TestCase, Client
+from django.test import TestCase, Client, override_settings
 from .models import Complaint, RecoveryRequest
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.contrib.auth.models import User
@@ -91,7 +91,7 @@ class PublicComplaintPagesTests(TestCase):
     def test_tracking_normalizes_reference_and_hides_private_details(self):
         submitted = self.client.post('/api/complaints/', {'title': 'إنارة الحي', 'description': 'تعطل الإنارة'}).json()
         arabic_reference = submitted['reference'].lower().translate(str.maketrans('0123456789', '٠١٢٣٤٥٦٧٨٩'))
-        response = self.client.post('/complaints/track/', {
+        response = self.client.get('/complaints/track/', {
             'reference': '  ' + arabic_reference + '  ',
         })
         self.assertEqual(response.status_code, 200)
@@ -99,7 +99,7 @@ class PublicComplaintPagesTests(TestCase):
         self.assertNotContains(response, 'إنارة الحي')
         self.assertContains(response, 'تم الاستلام')
         self.assertEqual(response['Cache-Control'], 'no-store')
-        invalid = self.client.post('/complaints/track/', {'reference': 'YBC-0000-000000'})
+        invalid = self.client.get('/complaints/track/', {'reference': 'YBC-0000-000000'})
         self.assertContains(invalid, 'لم نعثر على شكوى بهذا الرقم')
         self.assertNotContains(invalid, 'إنارة الحي')
         self.assertIsNone(invalid.context.get('tracking_result'))
@@ -126,3 +126,56 @@ class PublicComplaintPagesTests(TestCase):
         self.assertEqual(set(response.json()), {'reference', 'status', 'submitted_at', 'timeline'})
         self.assertNotContains(response, 'Private')
         self.assertNotContains(response, 'private@example.com')
+
+
+@override_settings(
+    DEBUG=False,
+    ALLOWED_HOSTS=['council.example.org'],
+    CSRF_COOKIE_SECURE=True,
+    SESSION_COOKIE_SECURE=True,
+    SECURE_SSL_REDIRECT=True,
+    SECURE_PROXY_SSL_HEADER=('HTTP_X_FORWARDED_PROTO', 'https'),
+)
+class TrackingCsrfTests(TestCase):
+    def setUp(self):
+        self.client = Client(enforce_csrf_checks=True)
+        self.complaint = Complaint.objects.create(
+            reference='YBC-2026-605631', title='Private title', description='Private description',
+            name='Private name', email='private@example.com',
+        )
+        self.proxy_headers = {'HTTP_HOST': 'council.example.org', 'HTTP_X_FORWARDED_PROTO': 'https'}
+
+    def test_public_forms_use_get_and_tracking_works_without_cookies(self):
+        for path in ['/', '/complaints/track/']:
+            response = self.client.get(path, **self.proxy_headers)
+            self.assertContains(response, 'method="get" action="/complaints/track/"')
+            self.assertNotContains(response, 'name="csrfmiddlewaretoken"')
+        self.client.cookies.clear()
+        response = self.client.get('/complaints/track/', {'reference': self.complaint.reference}, **self.proxy_headers)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'تم الاستلام')
+        self.assertNotContains(response, 'Private')
+        self.assertEqual(response['Cache-Control'], 'no-store')
+        self.assertNotIn('csrftoken', self.client.cookies)
+        self.complaint.refresh_from_db()
+        self.assertEqual(self.complaint.status, 'submitted')
+        self.assertEqual(self.complaint.status_history.count(), 0)
+
+    def test_api_lookup_works_without_csrf_and_invalid_reference_has_clear_error(self):
+        response = self.client.get('/api/complaints/track/', {'reference': self.complaint.reference}, **self.proxy_headers)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['reference'], self.complaint.reference)
+        self.assertNotIn('title', response.json())
+        invalid = self.client.get('/complaints/track/', {'reference': 'YBC-0000-000000'}, **self.proxy_headers)
+        self.assertContains(invalid, 'لم نعثر على شكوى بهذا الرقم')
+        self.assertEqual(self.client.get('/api/complaints/track/', {'reference': 'missing'}, **self.proxy_headers).status_code, 404)
+
+    def test_csrf_is_still_required_for_writes_and_legacy_tracking_posts(self):
+        self.assertEqual(self.client.post('/api/complaints/', {'title': 'test', 'description': 'test'}, **self.proxy_headers).status_code, 403)
+        self.assertEqual(self.client.post('/complaints/track/', {'reference': self.complaint.reference}, **self.proxy_headers).status_code, 403)
+        self.client.get('/complaints/submit/', **self.proxy_headers)
+        token = self.client.cookies['csrftoken'].value
+        response = self.client.post('/complaints/track/', {
+            'reference': self.complaint.reference, 'csrfmiddlewaretoken': token,
+        }, HTTP_ORIGIN='https://council.example.org', **self.proxy_headers)
+        self.assertContains(response, 'تم الاستلام')

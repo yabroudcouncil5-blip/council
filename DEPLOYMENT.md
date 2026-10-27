@@ -50,7 +50,7 @@ In the admin, open **بيانات البلدية**, edit the council record (or 
 
 ## Dashboard and public forms
 
-Run `python manage.py collectstatic --noinput` during deployment to publish the dashboard RTL styles and shared public form styles. The dashboard uses Noto Sans Arabic with Tahoma as a fallback. Tracking is embedded on the homepage and also available at `/complaints/track/`; it uses only the complaint reference, for both existing and new complaints. Public tracking returns the status and public timeline, without personal details, complaint descriptions, titles, or attachments. Legacy tracking hashes remain stored for compatibility but are no longer used.
+Run `python manage.py collectstatic --noinput` during deployment to publish the dashboard RTL styles and shared public form styles. The dashboard uses Noto Sans Arabic with Tahoma as a fallback. Tracking is embedded on the homepage and also available at `/complaints/track/`; it uses only the complaint reference, for both existing and new complaints. Tracking forms use read-only GET requests so lookups work without CSRF cookies, including behind HTTPS proxies. The JSON tracking endpoint also supports GET. Complaint submission and dashboard writes remain POST requests protected by CSRF. Public tracking returns the status and public timeline, without personal details, complaint descriptions, titles, or attachments. Legacy tracking hashes remain stored for compatibility but are no longer used.
 
 ## Website content editor
 
