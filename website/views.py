@@ -10,6 +10,7 @@ from io import BytesIO
 import uuid
 import warnings
 from .models import ContentImage
+from complaints.tracking import tracking_context
 
 
 @admin.site.admin_view
@@ -53,7 +54,13 @@ def page(request, slug):
     item = get_object_or_404(Page, slug=slug, published=True)
     return render(request, 'website/page.html', {**ctx(), 'title': item.title, 'body': item.body})
 def ctx(): return {'council': CouncilSettings.objects.first() or {'name':'بلدية يبرود','description':'خدمة المدينة وأهلها بشفافية ومسؤولية.','phone':'011-0000000','email':'info@yabroud.gov.sy'}}
-def home(request): return render(request,'website/home.html',{**ctx(),'news':NewsArticle.objects.filter(published=True)[:3]})
+def home(request):
+    context = {**ctx(), 'news': NewsArticle.objects.filter(published=True)[:3], **tracking_context(request.GET)}
+    response = render(request, 'website/home.html', context)
+    if 'reference' in request.GET:
+        response['Cache-Control'] = 'no-store'
+    return response
+
 def simple(request, slug):
     item=Page.objects.filter(slug=slug,published=True).first(); fallback={'about':('عن البلدية','تعمل بلدية يبرود على تقديم الخدمات البلدية وتحسين المدينة.'),'services':('الخدمات البلدية','النظافة والبيئة، الطرق والإنارة، المياه والصرف الصحي، والخدمات الإدارية.')}; title,body=(item.title,item.body) if item else fallback.get(slug,('بلدية يبرود','المحتوى قيد التحديث.')); return render(request,'website/page.html',{**ctx(),'title':title,'body':body})
 def news(request): return render(request,'website/news.html',{**ctx(),'news':NewsArticle.objects.filter(published=True)})

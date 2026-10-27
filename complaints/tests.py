@@ -112,7 +112,7 @@ class PublicComplaintPagesTests(TestCase):
         home = self.client.get('/')
         self.assertContains(home, 'name="reference"')
         self.assertNotContains(home, 'name="tracking_code"')
-        self.assertContains(home, 'action="/complaints/track/"')
+        self.assertContains(home, 'action="/#tracking"')
         self.assertNotContains(self.client.get('/complaints/submit/'), '<select')
 
     def test_existing_complaint_tracks_by_reference_without_exposing_details(self):
@@ -148,7 +148,7 @@ class TrackingCsrfTests(TestCase):
     def test_public_forms_use_get_and_tracking_works_without_cookies(self):
         for path in ['/', '/complaints/track/']:
             response = self.client.get(path, **self.proxy_headers)
-            self.assertContains(response, 'method="get" action="/complaints/track/"')
+            self.assertContains(response, 'method="get" action="/#tracking"')
             self.assertNotContains(response, 'name="csrfmiddlewaretoken"')
         self.client.cookies.clear()
         response = self.client.get('/complaints/track/', {'reference': self.complaint.reference}, **self.proxy_headers)
@@ -179,3 +179,21 @@ class TrackingCsrfTests(TestCase):
             'reference': self.complaint.reference, 'csrfmiddlewaretoken': token,
         }, HTTP_ORIGIN='https://council.example.org', **self.proxy_headers)
         self.assertContains(response, 'تم الاستلام')
+
+    def test_lookup_result_and_errors_stay_on_homepage(self):
+        from .models import ComplaintStatusHistory
+        ComplaintStatusHistory.objects.create(complaint=self.complaint, status='submitted', public_message='تم استلام الشكوى للمتابعة')
+        response = self.client.get('/', {'reference': self.complaint.reference}, **self.proxy_headers)
+        self.assertTemplateUsed(response, 'website/home.html')
+        self.assertContains(response, 'خدمات بلدية أقرب إلى الناس')
+        self.assertContains(response, 'تحديثات الشكوى')
+        self.assertContains(response, 'تم استلام الشكوى للمتابعة')
+        self.assertContains(response, 'value="YBC-2026-605631"')
+        self.assertNotContains(response, 'Private')
+        self.assertEqual(response['Cache-Control'], 'no-store')
+        self.assertLess(response.content.index(b'id="tracking"'), response.content.index('تحديثات الشكوى'.encode()))
+        invalid = self.client.get('/', {'reference': 'YBC-0000-000000'}, **self.proxy_headers)
+        self.assertTemplateUsed(invalid, 'website/home.html')
+        self.assertContains(invalid, 'لم نعثر على شكوى بهذا الرقم')
+        self.assertContains(invalid, 'خدمات بلدية أقرب إلى الناس')
+        self.assertNotContains(invalid, 'تحديثات الشكوى')

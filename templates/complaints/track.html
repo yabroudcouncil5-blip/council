@@ -3,18 +3,5 @@
 {% block content %}
 <div class="service-wrap">
   {% include 'complaints/includes/tracking_form.html' %}
-  {% if tracking_error %}<div class="notice error" role="alert">{{ tracking_error }}</div>{% endif %}
-  {% if tracking_result %}
-  <section class="card service-panel" aria-live="polite">
-    <div class="eyebrow">{{ tracking_result.status }}</div>
-    <h2>متابعة الشكوى</h2>
-    <p>الرقم المرجعي: <bdi>{{ tracking_result.reference }}</bdi></p>
-    <h3>تحديثات الشكوى</h3>
-    <ol class="timeline">{% for item in tracking_result.timeline %}
-      <li><strong>{{ item.status }}</strong><p>{{ item.public_message }}</p><time class="muted">{{ item.created_at|date:'Y/m/d H:i' }}</time></li>
-      {% empty %}<li>تم استلام الشكوى، وستظهر تحديثاتها هنا.</li>{% endfor %}
-    </ol>
-  </section>
-  {% endif %}
 </div>
 {% endblock %}
