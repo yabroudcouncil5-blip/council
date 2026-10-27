@@ -1,5 +1,4 @@
 from django.db import models
-from django.contrib.auth.hashers import make_password, check_password
 from django.conf import settings
 
 class Complaint(models.Model):
@@ -12,6 +11,7 @@ class Complaint(models.Model):
 
     STATUS = [('submitted','تم الاستلام'),('under_review','قيد المراجعة'),('assigned','تمت الإحالة'),('in_progress','قيد المعالجة'),('final_review','قيد التحقق النهائي'),('completed','تمت المعالجة'),('closed','أغلقت دون معالجة')]
     reference = models.CharField(max_length=24, unique=True, editable=False, verbose_name='الرقم المرجعي')
+    # Legacy data retained; tracking now uses only the reference.
     tracking_hash = models.CharField(max_length=128, verbose_name='بصمة رمز التتبع')
     title = models.CharField(max_length=200, verbose_name='موضوع الشكوى')
     description = models.TextField(verbose_name='الوصف')
@@ -23,9 +23,6 @@ class Complaint(models.Model):
     status = models.CharField(max_length=30, choices=STATUS, default='submitted', verbose_name='الحالة')
     submitted_at = models.DateTimeField(auto_now_add=True, verbose_name='تاريخ الاستلام')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='آخر تحديث')
-    @staticmethod
-    def hash_tracking(value): return make_password(value)
-    def verify_tracking(self, value): return check_password(value, self.tracking_hash)
 
 class ComplaintStatusHistory(models.Model):
     class Meta:

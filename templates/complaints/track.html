@@ -1,1 +1,20 @@
-<!doctype html><html lang="ar" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>تتبع شكوى</title><style>body{font-family:Arial;max-width:620px;margin:2rem auto;padding:1rem}label{display:block;margin:1rem 0}input{width:100%;padding:.7rem;box-sizing:border-box}button{padding:.8rem 1.5rem;background:#087f73;color:#fff;border:0;border-radius:6px}</style><h1>تتبع شكوى</h1><form method="post" action="/api/complaints/track/">{% csrf_token %}<label>المرجع<input name="reference" required></label><label>رمز التتبع<input name="tracking_code" required></label><button>عرض الحالة</button></form></html>
+{% extends 'website/base.html' %}
+{% block title %}تتبع شكوى | {{ council.name|default:'بلدية يبرود' }}{% endblock %}
+{% block content %}
+<div class="service-wrap">
+  {% include 'complaints/includes/tracking_form.html' %}
+  {% if tracking_error %}<div class="notice error" role="alert">{{ tracking_error }}</div>{% endif %}
+  {% if tracking_result %}
+  <section class="card service-panel" aria-live="polite">
+    <div class="eyebrow">{{ tracking_result.status }}</div>
+    <h2>متابعة الشكوى</h2>
+    <p>الرقم المرجعي: <bdi>{{ tracking_result.reference }}</bdi></p>
+    <h3>تحديثات الشكوى</h3>
+    <ol class="timeline">{% for item in tracking_result.timeline %}
+      <li><strong>{{ item.status }}</strong><p>{{ item.public_message }}</p><time class="muted">{{ item.created_at|date:'Y/m/d H:i' }}</time></li>
+      {% empty %}<li>تم استلام الشكوى، وستظهر تحديثاتها هنا.</li>{% endfor %}
+    </ol>
+  </section>
+  {% endif %}
+</div>
+{% endblock %}

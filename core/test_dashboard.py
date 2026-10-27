@@ -45,3 +45,28 @@ class CouncilDashboardTests(TestCase):
         form = ReviewForm(data={'complaint': self.complaint.pk, 'assignment': assignment.pk, 'reviewer': self.admin.pk, 'decision': 'approved'})
         self.assertFalse(form.is_valid())
         self.assertIn('assignment', form.errors)
+
+    def test_assignment_uses_visible_choices_and_saves_native_datetime(self):
+        from django.contrib import admin
+        from django.test import RequestFactory
+        from django import forms
+        department = Department.objects.create(name='النظافة')
+        department.members.add(self.admin)
+        request = RequestFactory().get('/admin/complaints/complaintassignment/add/')
+        request.user = self.admin
+        form_class = admin.site._registry[ComplaintAssignment].get_form(request)
+        form = form_class(data={
+            'complaint': self.complaint.pk, 'department': department.pk,
+            'officer': self.admin.pk, 'priority': 'high', 'status': 'assigned',
+            'due_at': '2026-11-01T10:30',
+        })
+        self.assertTrue(form.is_valid(), form.errors)
+        assignment = form.save()
+        self.assertEqual(assignment.due_at.hour, 10)
+        for name in ['priority', 'status', 'department', 'officer']:
+            widget = form.fields[name].widget
+            self.assertIsInstance(getattr(widget, 'widget', widget), forms.RadioSelect)
+        self.client.force_login(self.admin)
+        response = self.client.get('/admin/core/department/')
+        self.assertContains(response, 'core/dashboard.')
+        self.assertContains(response, 'Noto+Sans+Arabic')

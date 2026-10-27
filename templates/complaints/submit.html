@@ -1,1 +1,55 @@
-<!doctype html><html lang="ar" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>تقديم شكوى | بلدية يبرود</title><style>body{margin:0;background:#f2f7f6;color:#123047;font-family:Arial,sans-serif;line-height:1.8}.wrap{max-width:760px;margin:30px auto;padding:0 20px}.back{color:#087f73;font-weight:bold}.panel{background:#fff;border:1px solid #dce8e6;border-radius:18px;padding:28px;box-shadow:0 10px 30px #12304712}h1{margin-bottom:4px}p{color:#617487}.row{display:grid;grid-template-columns:1fr 1fr;gap:16px}label{display:block;margin:15px 0;font-weight:700}input,textarea,select{display:block;width:100%;margin-top:6px;padding:12px;border:1px solid #cbdad8;border-radius:8px;box-sizing:border-box;font:inherit}textarea{min-height:130px}button{padding:12px 22px;background:#087f73;color:#fff;border:0;border-radius:8px;font:inherit;font-weight:bold;cursor:pointer}.actions{display:flex;gap:10px;align-items:center;margin-top:18px}.cancel{padding:11px 20px;border:1px solid #cbdad8;border-radius:8px;color:#536978;background:#fff;font-weight:bold}.cancel:hover{background:#f2f7f6}#result{margin-top:18px;padding:14px;border-radius:9px;background:#e9f7f3;white-space:pre-line}@media(max-width:600px){.row{grid-template-columns:1fr}.actions{flex-direction:column;align-items:stretch;text-align:center}}</style><main class="wrap"><a class="back" href="/">← العودة للموقع</a><div class="panel"><div style="color:#087f73;font-weight:bold">بوابة الخدمات البلدية</div><h1>تقديم شكوى أو ملاحظة</h1><p>أرسل التفاصيل وسنحيلها إلى القسم المختص. لا تحتاج إلى إنشاء حساب.</p><form method="post" action="/api/complaints/" enctype="multipart/form-data">{% csrf_token %}<label>عنوان الشكوى *<input name="title" required></label><label>التفاصيل *<textarea name="description" required></textarea></label><div class="row"><label>التصنيف<select name="category"><option value="">اختر التصنيف</option>{% for category in categories %}<option value="{{ category.pk }}">{{ category.name }}</option>{% endfor %}</select></label><label>الموقع<input name="location" placeholder="الحي أو الشارع"></label></div><div class="row"><label>الاسم (اختياري)<input name="name"></label><label>الهاتف (اختياري)<input name="phone"></label></div><label>البريد الإلكتروني (اختياري)<input name="email" type="email"></label><label>صورة داعمة (اختيارية)<input name="photo" type="file" accept="image/jpeg,image/png,image/webp"></label><div class="actions"><button type="submit">إرسال الشكوى</button><a class="cancel" href="/">إلغاء والعودة للرئيسية</a></div></form><div id="result" hidden></div></div></main><script>document.querySelector('form').addEventListener('submit',async function(e){e.preventDefault();const r=document.getElementById('result');const x=await fetch(this.action,{method:'POST',body:new FormData(this)});const d=await x.json();r.hidden=false;r.textContent=x.ok?'تم استلام الشكوى\nالرقم المرجعي: '+d.reference+'\nرمز التتبع: '+d.tracking_code:'تعذر الإرسال: '+(d.error||'حدث خطأ');if(x.ok)this.reset()})</script></html>
+{% extends 'website/base.html' %}
+{% block title %}تقديم شكوى | {{ council.name|default:'بلدية يبرود' }}{% endblock %}
+{% block content %}
+<div class="service-wrap"><section class="card service-panel">
+  <div class="eyebrow">بوابة الخدمات البلدية</div>
+  <h1>تقديم شكوى أو ملاحظة</h1>
+  <p class="muted">أرسل التفاصيل وسنحيلها إلى القسم المختص. لا تحتاج إلى إنشاء حساب.</p>
+  <form id="complaint-form" class="public-form" method="post" action="/api/complaints/" enctype="multipart/form-data">
+    {% csrf_token %}
+    <label>عنوان الشكوى *<input name="title" maxlength="200" required placeholder="مثال: عطل إنارة في الشارع"></label>
+    <label>التفاصيل *<textarea name="description" required placeholder="اشرح المشكلة ومتى بدأت"></textarea></label>
+    <fieldset class="choice-group"><legend>التصنيف (اختياري)</legend><div class="choice-cards">
+      <label><input type="radio" name="category" value="" checked>غير محدد</label>
+      {% for category in categories %}<label><input type="radio" name="category" value="{{ category.pk }}">{{ category.name }}</label>{% endfor %}
+    </div></fieldset>
+    <label>الموقع<input name="location" maxlength="255" placeholder="الحي أو الشارع وأقرب نقطة معروفة"></label>
+    <details><summary>بيانات التواصل (اختيارية)</summary>
+      <div class="form-grid"><label>الاسم<input name="name" maxlength="160" autocomplete="name"></label><label>الهاتف<input name="phone" type="tel" dir="ltr" maxlength="80" autocomplete="tel"></label></div>
+      <label>البريد الإلكتروني<input name="email" type="email" dir="ltr" autocomplete="email"></label>
+    </details>
+    <label>صورة داعمة (اختيارية)<input name="photo" type="file" accept="image/jpeg,image/png,image/webp"><small class="muted">PNG أو JPEG أو WebP، حتى 5 ميغابايت.</small></label>
+    <div class="form-actions"><button class="button" type="submit">إرسال الشكوى</button><a href="/">إلغاء والعودة للرئيسية</a></div>
+  </form>
+  <div id="submission-result" class="notice" hidden role="status" tabindex="-1"></div>
+  <a id="track-new-complaint" class="button alt" href="/complaints/track/" hidden>تتبع الشكوى</a>
+</section></div>
+<script>
+document.getElementById('complaint-form').addEventListener('submit', async function(event) {
+  event.preventDefault();
+  const result = document.getElementById('submission-result');
+  const button = this.querySelector('button[type="submit"]');
+  button.disabled = true;
+  result.hidden = false;
+  result.textContent = 'جارٍ إرسال الشكوى…';
+  try {
+    const response = await fetch(this.action, {method: 'POST', body: new FormData(this)});
+    const data = await response.json();
+    result.classList.toggle('error', !response.ok);
+    result.textContent = response.ok
+      ? 'تم استلام الشكوى بنجاح.\nالرقم المرجعي: ' + data.reference + '\nاحتفظ بهذا الرقم؛ يمكنك استخدامه وحده لمتابعة الشكوى.'
+      : 'تعذر الإرسال: ' + (data.error || 'حاول مرة أخرى.');
+    if (response.ok) {
+      this.hidden = true;
+      document.getElementById('track-new-complaint').hidden = false;
+    }
+  } catch (error) {
+    result.classList.add('error');
+    result.textContent = 'تعذر الاتصال بالخادم. تحقق من اتصالك وحاول مرة أخرى.';
+  } finally {
+    button.disabled = false;
+    result.focus();
+  }
+});
+</script>
+{% endblock %}

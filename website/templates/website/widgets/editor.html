@@ -1,0 +1,14 @@
+<div class="council-editor" data-upload-url="{% url 'editor-image-upload' %}">
+  <div class="editor-toolbar" aria-label="تنسيق المحتوى">
+    <span class="ql-formats"><select class="ql-header" aria-label="نوع النص"><option selected>نص عادي</option><option value="2">عنوان رئيسي</option><option value="3">عنوان فرعي</option></select></span>
+    <span class="ql-formats"><select class="ql-size" aria-label="حجم الخط"><option value="14px">14</option><option value="16px">16</option><option value="18px" selected>18</option><option value="24px">24</option><option value="32px">32</option><option value="40px">40</option></select></span>
+    <span class="ql-formats"><button type="button" class="ql-bold" title="عريض" aria-label="عريض"></button><button type="button" class="ql-italic" title="مائل" aria-label="مائل"></button><button type="button" class="ql-underline" title="تسطير" aria-label="تسطير"></button></span>
+    <span class="ql-formats"><button type="button" class="ql-list" value="bullet" title="قائمة نقاط" aria-label="قائمة نقاط"></button><button type="button" class="ql-list" value="ordered" title="قائمة مرقمة" aria-label="قائمة مرقمة"></button></span>
+    <span class="ql-formats"><select class="ql-align" aria-label="المحاذاة"><option value="right" selected>يمين</option><option value="center">وسط</option><option value="left">يسار</option><option value="justify">ضبط</option></select></span>
+    <span class="ql-formats"><button type="button" class="ql-link" title="إضافة رابط" aria-label="إضافة رابط"></button><button type="button" class="ql-image" title="رفع صورة" aria-label="رفع صورة"></button><button type="button" class="ql-clean" title="مسح التنسيق" aria-label="مسح التنسيق"></button></span>
+  </div>
+  <div class="editor-surface">{{ editor_html|safe }}</div>
+  <input type="file" class="editor-image-file" accept="image/png,image/jpeg,image/webp" hidden>
+  <p class="editor-feedback" role="status" aria-live="polite"></p>
+  <div class="editor-source">{% include 'django/forms/widgets/textarea.html' %}</div>
+</div>

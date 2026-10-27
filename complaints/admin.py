@@ -35,6 +35,10 @@ class CouncilAdmin(ModelAdmin):
     list_filter_submit = True
     save_on_top = True
 
+    def formfield_for_choice_field(self, db_field, request, **kwargs):
+        kwargs['widget'] = forms.RadioSelect(attrs={'class': 'officer-choices'})
+        return super().formfield_for_choice_field(db_field, request, **kwargs)
+
     def formfield_for_dbfield(self, db_field, request, **kwargs):
         if db_field.name in LABELS:
             kwargs['label'] = LABELS[db_field.name]
@@ -56,6 +60,7 @@ class HistoryInline(TabularInline):
 
 @admin.register(Complaint)
 class ComplaintAdmin(CouncilAdmin):
+    radio_fields = {'category': admin.VERTICAL}
     list_display = ('reference', 'title', 'category', 'status', 'submitted_at')
     list_filter = ('status', 'category', 'submitted_at')
     search_fields = ('reference', 'title', 'description', 'name', 'phone')
@@ -70,7 +75,7 @@ class ComplaintAdmin(CouncilAdmin):
     inlines = (HistoryInline,)
 
     def has_add_permission(self, request):
-        # Public submission creates and returns a private tracking code.
+        # Public submission creates and returns the complaint reference.
         return False
 
 
@@ -78,6 +83,7 @@ class AssignmentForm(forms.ModelForm):
     class Meta:
         model = ComplaintAssignment
         fields = '__all__'
+        widgets = {'due_at': forms.DateTimeInput(attrs={'type': 'datetime-local'}, format='%Y-%m-%dT%H:%M')}
 
     def clean(self):
         data = super().clean()
@@ -95,7 +101,8 @@ class AssignmentAdmin(CouncilAdmin):
     list_display = ('complaint', 'department', 'officer', 'status', 'priority', 'due_at')
     list_filter = ('status', 'priority', 'department')
     search_fields = ('complaint__reference', 'complaint__title', 'department__name', 'officer__username')
-    autocomplete_fields = ('complaint', 'department', 'officer')
+    autocomplete_fields = ('complaint',)
+    radio_fields = {'department': admin.VERTICAL, 'officer': admin.VERTICAL}
     list_select_related = ('complaint', 'department', 'officer')
     readonly_fields = ('assigned_at',)
     ordering = ('-assigned_at',)
@@ -105,12 +112,19 @@ class AssignmentAdmin(CouncilAdmin):
     )
 
     def formfield_for_dbfield(self, db_field, request, **kwargs):
+        if db_field.name == 'due_at':
+            return forms.DateTimeField(label=LABELS['due_at'], required=False, widget=forms.DateTimeInput(attrs={'type': 'datetime-local'}, format='%Y-%m-%dT%H:%M'))
         field = super().formfield_for_dbfield(db_field, request, **kwargs)
         choices = {'status': ASSIGNMENT_STATES, 'priority': [('low', 'منخفضة'), ('medium', 'متوسطة'), ('high', 'مرتفعة'), ('urgent', 'عاجلة')]}
         if db_field.name in choices:
-            from unfold.widgets import UnfoldAdminSelectWidget
-            field = forms.ChoiceField(label=LABELS[db_field.name], choices=choices[db_field.name], widget=UnfoldAdminSelectWidget)
+            field = forms.ChoiceField(label=LABELS[db_field.name], choices=choices[db_field.name], widget=forms.RadioSelect(attrs={'class': 'officer-choices'}))
         return field
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == 'officer':
+            from django.contrib.auth import get_user_model
+            kwargs['queryset'] = get_user_model().objects.filter(is_active=True, is_staff=True)
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 
 class ReviewForm(forms.ModelForm):

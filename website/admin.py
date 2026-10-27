@@ -1,9 +1,11 @@
 from django.contrib import admin
 from unfold.admin import ModelAdmin
 from .models import Page, NewsArticle, DepartmentPage
+from .forms import PageForm, NewsForm
 
 @admin.register(NewsArticle)
 class NewsArticleAdmin(ModelAdmin):
+    form = NewsForm
     list_display = ('title', 'published', 'published_at', 'created_at')
     list_filter = ('published',)
     search_fields = ('title', 'body')
@@ -15,6 +17,7 @@ class NewsArticleAdmin(ModelAdmin):
 
 @admin.register(Page)
 class PageAdmin(ModelAdmin):
+    form = PageForm
     list_display = ('title', 'slug', 'published', 'updated_at')
     list_filter = ('published',)
     search_fields = ('title', 'slug', 'body')

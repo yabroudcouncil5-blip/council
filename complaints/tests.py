@@ -8,13 +8,14 @@ from django.contrib.auth.models import User
 from core.models import Department, ComplaintCategory
 
 class ComplaintFlowTests(TestCase):
-    def test_anonymous_submission_and_private_tracking(self):
+    def test_anonymous_submission_and_reference_tracking(self):
         client = Client()
         response = client.post('/api/complaints/', {'title':'إنارة','description':'الشارع مظلم'})
         self.assertEqual(response.status_code, 201)
         data = response.json()
-        self.assertEqual(client.post('/api/complaints/track/', {'reference':data['reference'], 'tracking_code':data['tracking_code']}).status_code, 200)
-        self.assertEqual(client.post('/api/complaints/track/', {'reference':data['reference'], 'tracking_code':'wrong'}).status_code, 404)
+        self.assertEqual(client.post('/api/complaints/track/', {'reference':data['reference']}).status_code, 200)
+        self.assertEqual(client.post('/api/complaints/track/', {'reference':'YBC-0000-000000'}).status_code, 404)
+        self.assertNotIn('tracking_code', data)
         self.assertEqual(Complaint.objects.count(), 1)
 
     def test_recovery_request_requires_explanation(self):
@@ -84,3 +85,44 @@ class StaffReportTests(TestCase):
         self.user.is_staff = False
         self.user.save()
         self.assertEqual(self.client.get('/staff/reports/').status_code, 403)
+
+
+class PublicComplaintPagesTests(TestCase):
+    def test_tracking_normalizes_reference_and_hides_private_details(self):
+        submitted = self.client.post('/api/complaints/', {'title': 'إنارة الحي', 'description': 'تعطل الإنارة'}).json()
+        arabic_reference = submitted['reference'].lower().translate(str.maketrans('0123456789', '٠١٢٣٤٥٦٧٨٩'))
+        response = self.client.post('/complaints/track/', {
+            'reference': '  ' + arabic_reference + '  ',
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'website/base.html')
+        self.assertNotContains(response, 'إنارة الحي')
+        self.assertContains(response, 'تم الاستلام')
+        self.assertEqual(response['Cache-Control'], 'no-store')
+        invalid = self.client.post('/complaints/track/', {'reference': 'YBC-0000-000000'})
+        self.assertContains(invalid, 'لم نعثر على شكوى بهذا الرقم')
+        self.assertNotContains(invalid, 'إنارة الحي')
+        self.assertIsNone(invalid.context.get('tracking_result'))
+
+    def test_home_tracking_and_submission_share_website_layout(self):
+        for path in ['/', '/complaints/track/', '/complaints/submit/']:
+            response = self.client.get(path)
+            self.assertTemplateUsed(response, 'website/base.html')
+            self.assertContains(response, 'core/public.')
+        home = self.client.get('/')
+        self.assertContains(home, 'name="reference"')
+        self.assertNotContains(home, 'name="tracking_code"')
+        self.assertContains(home, 'action="/complaints/track/"')
+        self.assertNotContains(self.client.get('/complaints/submit/'), '<select')
+
+    def test_existing_complaint_tracks_by_reference_without_exposing_details(self):
+        complaint = Complaint.objects.create(
+            reference='YBC-2026-605631', tracking_hash='legacy-stored-hash',
+            title='Private title', description='Private description',
+            name='Private name', phone='Private phone', email='private@example.com',
+        )
+        response = self.client.post('/api/complaints/track/', {'reference': complaint.reference})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(set(response.json()), {'reference', 'status', 'submitted_at', 'timeline'})
+        self.assertNotContains(response, 'Private')
+        self.assertNotContains(response, 'private@example.com')

@@ -18,11 +18,15 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
-from core.views import health
+from core.views import health, council_logo
+from website.views import upload_editor_image, content_image
 from complaints.views import complaint_form, tracking_form, submit_complaint, track_complaint, recovery_request, review_queue, assign_complaint, action_submission, final_review, publish_resolution, public_resolutions, dashboard_report, staff_dashboard
 from django.contrib.auth import views as auth_views
 
 urlpatterns = [
+    path('admin/website/upload-image/', upload_editor_image, name='editor-image-upload'),
+    path('website-images/<str:filename>', content_image, name='website-content-image'),
+    path('media/council/logos/<path:filename>', council_logo, name='council-logo'),
     path('admin/', admin.site.urls),
     path('', include('website.urls')),
     path('health/', health),

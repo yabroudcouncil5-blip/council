@@ -1,0 +1,11 @@
+<section class="card service-panel" id="tracking" aria-labelledby="tracking-title">
+  <div class="eyebrow">متابعة الطلبات</div>
+  <h2 id="tracking-title">تتبع شكواك</h2>
+  <p class="muted">أدخل الرقم المرجعي الذي حصلت عليه عند إرسال الشكوى لعرض حالتها وآخر تحديثاتها.</p>
+  <form method="post" action="/complaints/track/" class="public-form">
+    {% csrf_token %}
+      <label>الرقم المرجعي<input name="reference" dir="ltr" placeholder="YBC-2026-123456" value="{{ tracking_values.reference }}" required autocapitalize="characters" spellcheck="false"></label>
+    <button class="button" type="submit">عرض حالة الشكوى</button>
+    <p class="muted">فقدت الرقم المرجعي؟ <a href="/contact/">تواصل مع البلدية</a>.</p>
+  </form>
+</section>

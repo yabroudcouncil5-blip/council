@@ -8,19 +8,46 @@ from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from .models import Complaint
 from django.core.validators import validate_email
+from website.views import ctx
+
+
+def tracking_result(data):
+    # Normalize copy/paste spacing, Arabic digits, and common reference separators.
+    reference = data.get('reference', '').strip().translate(str.maketrans('٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹–—', '01234567890123456789--')).upper()
+    complaint = Complaint.objects.filter(reference=reference).first()
+    if not complaint:
+        return None
+    labels = dict(Complaint.STATUS)
+    return {
+        'reference': complaint.reference,
+        'status': complaint.get_status_display(),
+        'submitted_at': complaint.submitted_at.isoformat(),
+        'timeline': [
+            {'status': labels.get(item.status, item.status), 'public_message': item.public_message, 'created_at': item.created_at}
+            for item in complaint.status_history.order_by('created_at', 'pk')
+        ],
+    }
 
 
 def complaint_form(request):
     """Render the public complaint form."""
     from core.models import ComplaintCategory
     return render(request, 'complaints/submit.html', {
+        **ctx(),
         'categories': ComplaintCategory.objects.filter(active=True).order_by('name'),
     })
 
 
 def tracking_form(request):
     """Render the public complaint tracking form."""
-    return render(request, 'complaints/track.html')
+    context = {**ctx(), 'tracking_values': request.POST}
+    if request.method == 'POST':
+        context['tracking_result'] = tracking_result(request.POST)
+        if not context['tracking_result']:
+            context['tracking_error'] = 'لم نعثر على شكوى بهذا الرقم. تأكد من الرقم المرجعي الذي حصلت عليه عند إرسال الشكوى، أو تواصل مع البلدية للمساعدة.'
+    response = render(request, 'complaints/track.html', context)
+    response['Cache-Control'] = 'no-store'
+    return response
 
 @require_http_methods(['POST'])
 def submit_complaint(request):
@@ -31,7 +58,6 @@ def submit_complaint(request):
         except Exception: return JsonResponse({'error':'البريد الإلكتروني غير صحيح'}, status=400)
     uploads = request.FILES.getlist('photos') or ([request.FILES['photo']] if request.FILES.get('photo') else [])
     if any(upload.size > 5 * 1024 * 1024 or upload.content_type not in {'image/jpeg','image/png','image/webp'} for upload in uploads): return JsonResponse({'error':'الصور يجب أن تكون JPEG أو PNG أو WebP وأقل من 5 ميغابايت لكل صورة'}, status=400)
-    code = secrets.token_urlsafe(12)
     year = __import__('datetime').datetime.now().year
     reference = None
     for _ in range(10):
@@ -40,19 +66,20 @@ def submit_complaint(request):
     if not reference: return JsonResponse({'error':'تعذر إنشاء رقم مرجعي، حاول مجدداً'}, status=503)
     from core.models import ComplaintCategory
     category = ComplaintCategory.objects.filter(pk=data.get('category')).first() if data.get('category') else None
-    complaint = Complaint.objects.create(reference=reference, tracking_hash=Complaint.hash_tracking(code), title=data['title'], description=data['description'], name=data.get('name',''), phone=data.get('phone',''), email=data.get('email',''), category=category, location=data.get('location',''))
+    complaint = Complaint.objects.create(reference=reference, tracking_hash='', title=data['title'], description=data['description'], name=data.get('name',''), phone=data.get('phone',''), email=data.get('email',''), category=category, location=data.get('location',''))
     from .models import ComplaintStatusHistory
     ComplaintStatusHistory.objects.create(complaint=complaint, status=complaint.status, public_message='تم استلام الشكوى')
     if uploads:
         from .models import ComplaintAttachment
         for upload in uploads: ComplaintAttachment.objects.create(complaint=complaint, file=upload, original_name=upload.name)
-    return JsonResponse({'reference': complaint.reference, 'tracking_code': code, 'status': complaint.status}, status=201)
+    return JsonResponse({'reference': complaint.reference, 'status': complaint.status}, status=201)
 
 @require_http_methods(['POST'])
 def track_complaint(request):
-    complaint = Complaint.objects.filter(reference=request.POST.get('reference','')).first()
-    if not complaint or not complaint.verify_tracking(request.POST.get('tracking_code','')): return JsonResponse({'error':'بيانات التتبع غير صحيحة'}, status=404)
-    return JsonResponse({'reference': complaint.reference, 'title': complaint.title, 'status': complaint.get_status_display(), 'submitted_at': complaint.submitted_at.isoformat(), 'timeline': list(complaint.status_history.values('status','public_message','created_at'))})
+    result = tracking_result(request.POST)
+    response = JsonResponse(result if result else {'error': 'بيانات التتبع غير صحيحة'}, status=200 if result else 404, json_dumps_params={'ensure_ascii': False})
+    response['Cache-Control'] = 'no-store'
+    return response
 
 @require_http_methods(['POST'])
 def recovery_request(request):

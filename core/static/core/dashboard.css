@@ -1,0 +1,18 @@
+html[dir="rtl"] body{font-family:'Noto Sans Arabic',Tahoma,Arial,sans-serif;line-height:1.8}
+html[dir="rtl"] input,html[dir="rtl"] textarea,html[dir="rtl"] select,html[dir="rtl"] button{font-family:inherit}
+/* Keep every header and value on the same edge, including numeric/boolean columns. */
+html[dir="rtl"] #content table{direction:rtl}
+html[dir="rtl"] #content table th,html[dir="rtl"] #content table td{text-align:right!important;vertical-align:middle}
+html[dir="rtl"] #content table th>div{justify-content:flex-start}
+html[dir="rtl"] #result_list .action-checkbox,html[dir="rtl"] #result_list .action-checkbox-column{text-align:center!important;width:44px}
+html[dir="rtl"] #result_list .action-checkbox-column>div{justify-content:center}
+html[dir="rtl"] #result_list td.field-reference,html[dir="rtl"] #result_list th.field-reference{direction:ltr;text-align:right!important}
+html[dir="rtl"] #result_list th .sortoptions{margin-left:0;margin-right:8px}
+html[dir="rtl"] #content input[type="checkbox"],html[dir="rtl"] #content input[type="radio"]{accent-color:#0f766e;flex-shrink:0}
+/* Visible choices instead of opening a menu for every decision. */
+.officer-choices,html[dir="rtl"] .field-department div[id^="id_"],html[dir="rtl"] .field-officer div[id^="id_"],html[dir="rtl"] .field-category div[id^="id_"]{display:flex;flex-direction:row;flex-wrap:wrap;gap:10px}
+.officer-choices>div>label,html[dir="rtl"] .field-department div[id^="id_"]>div label,html[dir="rtl"] .field-officer div[id^="id_"]>div label,html[dir="rtl"] .field-category div[id^="id_"]>div label{display:flex;align-items:center;gap:9px;min-height:46px;padding:10px 16px;border:1px solid #cbd5e1;border-radius:10px;cursor:pointer}
+.officer-choices label:has(input:checked),html[dir="rtl"] .field-department label:has(input:checked),html[dir="rtl"] .field-officer label:has(input:checked),html[dir="rtl"] .field-category label:has(input:checked){border-color:#0f766e;background:#0f766e12;box-shadow:inset 0 0 0 1px #0f766e}
+.officer-choices label:focus-within{outline:2px solid #14b8a6;outline-offset:2px}
+html[dir="rtl"] input[type="datetime-local"]{padding:12px;border:1px solid #cbd5e1;border-radius:8px;direction:ltr;max-width:100%}
+@media(max-width:1023px){html[dir="rtl"] #result_list td:before,html[dir="rtl"] #result_list th:before{margin-right:0;margin-left:auto;padding-inline-end:12px}}

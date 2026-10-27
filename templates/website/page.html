@@ -1,1 +1,1 @@
-{% extends 'website/base.html' %}{% block title %}{{ title }}{% endblock %}{% block content %}<article class="card"><h1>{{ title }}</h1><p>{{ body|linebreaks }}</p></article>{% endblock %}
+{% extends 'website/base.html' %}{% load website_content %}{% block title %}{{ title }}{% endblock %}{% block content %}<article class="card" style="margin-top:28px"><h1>{{ title }}</h1><div class="rich-content">{{ body|rich_content }}</div></article>{% endblock %}

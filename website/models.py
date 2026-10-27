@@ -1,5 +1,10 @@
 from django.db import models
 
+
+class ContentImage(models.Model):
+    image = models.ImageField(upload_to='website/images/')
+    created_at = models.DateTimeField(auto_now_add=True)
+
 class Page(models.Model):
     class Meta:
         verbose_name = 'صفحة'
@@ -7,6 +12,9 @@ class Page(models.Model):
 
     def __str__(self):
         return self.title
+
+    def get_absolute_url(self):
+        return '/' + self.slug + '/' if self.slug in {'about', 'services'} else '/pages/' + self.slug + '/'
 
     slug = models.SlugField(unique=True, verbose_name='الرابط المختصر')
     title = models.CharField(max_length=200, verbose_name='موضوع الشكوى')
