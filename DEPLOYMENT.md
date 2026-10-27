@@ -21,6 +21,11 @@ list of hostnames without `https://` or paths. To resolve a 400 on the existing
 deployment immediately, set `DJANGO_ALLOWED_HOSTS=yabroud-council.onrender.com`
 in Render's Environment settings and redeploy. Keep `DJANGO_DEBUG=0`.
 
+The root `.python-version` pins Render to Python 3.12, which is compatible with
+Django 4.2. Python 3.14 is incompatible with this Django version and causes admin
+template rendering to fail. Remove any Render `PYTHON_VERSION` environment
+variable so the repository pin takes effect; that variable overrides the file.
+
 Recommended cron jobs:
 
 ```text
