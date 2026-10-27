@@ -1,20 +1,28 @@
 from django.contrib import admin
+from unfold.admin import ModelAdmin
 from .models import Page, NewsArticle, DepartmentPage
 
 @admin.register(NewsArticle)
-class NewsArticleAdmin(admin.ModelAdmin):
+class NewsArticleAdmin(ModelAdmin):
     list_display = ('title', 'published', 'published_at', 'created_at')
     list_filter = ('published',)
     search_fields = ('title', 'body')
+    readonly_fields = ('created_at',)
+    fieldsets = (
+        ('محتوى الخبر', {'fields': ('title', 'body', 'featured_image')}),
+        ('النشر', {'fields': ('published', 'published_at', 'created_at')}),
+    )
 
 @admin.register(Page)
-class PageAdmin(admin.ModelAdmin):
+class PageAdmin(ModelAdmin):
     list_display = ('title', 'slug', 'published', 'updated_at')
     list_filter = ('published',)
     search_fields = ('title', 'slug', 'body')
+    prepopulated_fields = {'slug': ('title',)}
+    fieldsets = (('محتوى الصفحة', {'fields': ('title', 'slug', 'body')}), ('إعدادات النشر', {'fields': ('published',)}))
 
 @admin.register(DepartmentPage)
-class DepartmentPageAdmin(admin.ModelAdmin):
+class DepartmentPageAdmin(ModelAdmin):
     list_display = ('name', 'published', 'contact')
     list_filter = ('published',)
     search_fields = ('name', 'description')

@@ -35,3 +35,11 @@ Recommended cron jobs:
 ```
 
 Test a restore before launch. Never commit `.env`, database passwords, production media, or backups.
+
+## Admin theme
+
+The admin uses `django-unfold==0.67.0`, pinned for compatibility with the existing
+Django 4.2 application. Install the updated requirements and run `collectstatic`
+on deployment to publish Unfold's fonts, styles, and scripts. All model admins,
+including users and groups, inherit Unfold's `ModelAdmin`. Arabic navigation is
+configured in `UNFOLD` in `config/settings.py`. Reports are at `/staff/reports/`.

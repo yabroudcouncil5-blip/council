@@ -44,3 +44,43 @@ class ComplaintFlowTests(TestCase):
 
     def test_staff_dashboard_requires_staff(self):
         user=User.objects.create_user('resident',password='pass'); client=Client(); client.force_login(user); self.assertEqual(client.get('/staff/dashboard/').status_code, 403)
+
+class StaffReportTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user('reporter', is_staff=True)
+        self.client.force_login(self.user)
+
+    def test_empty_report_is_html(self):
+        response = self.client.get('/staff/reports/')
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'staff/reports.html')
+        self.assertContains(response, 'لا توجد شكاوى مسجلة بعد')
+        self.assertEqual(response.context['completion_rate'], 0)
+
+    def test_counts_and_overdue_department_work(self):
+        from datetime import timedelta
+        from django.utils import timezone
+        from .models import ComplaintAssignment, InternalNotification
+        department = Department.objects.create(name='الطرق')
+        complaint = Complaint.objects.create(reference='REPORT-1', title='إنارة', description='تفاصيل', tracking_hash='unused')
+        Complaint.objects.create(reference='REPORT-2', title='منجزة', description='تفاصيل', tracking_hash='unused', status='completed')
+        for status in ['assigned', 'approved', 'cancelled']:
+            ComplaintAssignment.objects.create(complaint=complaint, department=department, status=status, due_at=timezone.now() - timedelta(days=1))
+        InternalNotification.objects.create(user=self.user, message='تنبيه')
+        response = self.client.get('/staff/reports/')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['total_complaints'], 2)
+        self.assertEqual(response.context['open_complaints'], 1)
+        self.assertEqual(response.context['completion_rate'], 50)
+        self.assertEqual(response.context['overdue_count'], 1)
+        self.assertEqual(response.context['total_assignments'], 3)
+        self.assertEqual(response.context['unread_notifications'], 1)
+        row = response.context['departments'].get()
+        self.assertEqual((row.total, row.approved, row.overdue), (3, 1, 1))
+        self.assertContains(response, 'REPORT-1')
+        self.assertContains(response, 'غير مسندة لموظف')
+
+    def test_nonstaff_cannot_read_report(self):
+        self.user.is_staff = False
+        self.user.save()
+        self.assertEqual(self.client.get('/staff/reports/').status_code, 403)

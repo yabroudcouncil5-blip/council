@@ -130,8 +130,46 @@ def public_resolutions(request):
 
 @login_required
 def dashboard_report(request):
-    if not request.user.is_staff: return JsonResponse({'error':'غير مصرح'}, status=403)
-    from django.db.models import Count
-    counts=dict(Complaint.objects.values_list('status').annotate(total=Count('id')))
+    if not request.user.is_staff:
+        return JsonResponse({'error': 'غير مصرح'}, status=403)
+    from django.contrib import admin
+    from django.db.models import Count, Q
+    from django.utils import timezone
+    from core.models import Department
     from .models import ComplaintAssignment, InternalNotification
-    return JsonResponse({'complaints':counts,'assignments':dict(ComplaintAssignment.objects.values_list('status').annotate(total=Count('id'))),'overdue':ComplaintAssignment.objects.filter(due_at__lt=__import__('django.utils.timezone',fromlist=['now']).now()).exclude(status__in=['approved','cancelled']).count(),'unread_notifications':InternalNotification.objects.filter(user=request.user,read=False).count()})
+
+    now = timezone.now()
+    counts = dict(Complaint.objects.values_list('status').annotate(total=Count('id')))
+    assignment_counts = dict(ComplaintAssignment.objects.values_list('status').annotate(total=Count('id')))
+    overdue = ComplaintAssignment.objects.filter(due_at__lt=now).exclude(status__in=['approved', 'cancelled'])
+    total = sum(counts.values())
+    completed = counts.get('completed', 0)
+    assignment_labels = [
+        ('assigned', 'مسندة'), ('in_progress', 'قيد التنفيذ'),
+        ('submitted', 'بانتظار الاعتماد'), ('approved', 'معتمدة'),
+        ('returned', 'معادة للاستكمال'), ('cancelled', 'ملغاة'),
+    ]
+    department_rows = Department.objects.annotate(
+        total=Count('complaintassignment'),
+        approved=Count('complaintassignment', filter=Q(complaintassignment__status='approved')),
+        overdue=Count('complaintassignment', filter=Q(complaintassignment__due_at__lt=now) & ~Q(complaintassignment__status__in=['approved', 'cancelled'])),
+    ).order_by('-total', 'name')
+    context = {
+        **admin.site.each_context(request),
+        'title': 'التقارير والمتابعة',
+        'total_complaints': total,
+        'open_complaints': total - completed - counts.get('closed', 0),
+        'completion_rate': round(completed * 100 / total) if total else 0,
+        'total_assignments': sum(assignment_counts.values()),
+        'overdue_count': overdue.count(),
+        'unread_notifications': InternalNotification.objects.filter(user=request.user, read=False).count(),
+        'complaint_rows': [{'label': label, 'status': status, 'count': counts.get(status, 0),
+                            'percent': round(counts.get(status, 0) * 100 / total) if total else 0}
+                           for status, label in Complaint.STATUS],
+        'assignment_rows': [{'label': dict(assignment_labels).get(status, status), 'count': count}
+                            for status, count in sorted(assignment_counts.items())],
+        'departments': department_rows,
+        'overdue_assignments': overdue.select_related('complaint', 'department', 'officer').order_by('due_at')[:20],
+        'generated_at': now,
+    }
+    return render(request, 'staff/reports.html', context)

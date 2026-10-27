@@ -38,6 +38,7 @@ if render_hostname and render_hostname not in ALLOWED_HOSTS:
 # Application definition
 
 INSTALLED_APPS = [
+    'unfold',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -171,3 +172,41 @@ if not DEBUG:
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
     CSRF_COOKIE_HTTPONLY = False
     SESSION_COOKIE_HTTPONLY = True
+
+# Council administration theme and navigation.
+UNFOLD = {
+    'SITE_TITLE': 'بلدية يبرود',
+    'SITE_HEADER': 'بلدية يبرود',
+    'SITE_SUBHEADER': 'منصة الإدارة والخدمات',
+    'SITE_SYMBOL': 'account_balance',
+    'DASHBOARD_CALLBACK': 'core.dashboard.dashboard_callback',
+    'SITE_URL': '/',
+    'COLORS': {'primary': {
+        '50': '#f0fdfa', '100': '#ccfbf1', '200': '#99f6e4',
+        '300': '#5eead4', '400': '#2dd4bf', '500': '#14b8a6',
+        '600': '#0d9488', '700': '#0f766e', '800': '#115e59',
+        '900': '#134e4a', '950': '#042f2e',
+    }},
+    'SHOW_HISTORY': True,
+    'SHOW_VIEW_ON_SITE': True,
+    'SIDEBAR': {
+        'show_search': True,
+        'show_all_applications': True,
+        'navigation': [
+            {'title': 'مساحة العمل', 'separator': True, 'items': [
+                {'title': 'لوحة الإدارة', 'icon': 'dashboard', 'link': '/admin/'},
+                {'title': 'التقارير والمتابعة', 'icon': 'monitoring', 'link': '/staff/reports/'},
+                {'title': 'الشكاوى', 'icon': 'inbox', 'link': '/admin/complaints/complaint/'},
+                {'title': 'الإحالات', 'icon': 'assignment', 'link': '/admin/complaints/complaintassignment/'},
+                {'title': 'المراجعات', 'icon': 'fact_check', 'link': '/admin/complaints/complaintreview/'},
+            ]},
+            {'title': 'إدارة البلدية', 'separator': True, 'items': [
+                {'title': 'الأقسام', 'icon': 'account_tree', 'link': '/admin/core/department/'},
+                {'title': 'الأخبار والإعلانات', 'icon': 'newspaper', 'link': '/admin/website/newsarticle/'},
+                {'title': 'صفحات الموقع', 'icon': 'article', 'link': '/admin/website/page/'},
+                {'title': 'المستخدمون', 'icon': 'group', 'link': '/admin/auth/user/'},
+                {'title': 'بيانات البلدية', 'icon': 'settings', 'link': '/admin/core/councilsettings/'},
+            ]},
+        ],
+    },
+}
