@@ -9,6 +9,7 @@ class CouncilSettings(models.Model):
         return self.name
 
     name = models.CharField(max_length=200, default='بلدية يبرود', verbose_name='الاسم')
+    logo = models.ImageField(upload_to='council/logos/', blank=True, verbose_name='شعار البلدية', help_text='ارفع صورة للشعار بصيغة PNG أو JPEG أو WebP.')
     description = models.TextField(blank=True, verbose_name='الوصف')
     phone = models.CharField(max_length=80, blank=True, verbose_name='رقم الهاتف')
     email = models.EmailField(blank=True, verbose_name='البريد الإلكتروني')

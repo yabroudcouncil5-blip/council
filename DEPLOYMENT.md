@@ -13,7 +13,7 @@ cp .env.example .env
 
 ## Production
 
-Use PostgreSQL, a long random `DJANGO_SECRET_KEY`, `DJANGO_DEBUG=0`, `DJANGO_ALLOWED_HOSTS`, HTTPS, secure cookies, Gunicorn, and Nginx. Keep `media/` private; production URL routing deliberately does not expose `/media/`. Serve attachments only through an authorization-checked Django view when that feature is enabled. Run migrations before release and create a backup before every migration.
+Use PostgreSQL, a long random `DJANGO_SECRET_KEY`, `DJANGO_DEBUG=0`, `DJANGO_ALLOWED_HOSTS`, HTTPS, secure cookies, Gunicorn, and Nginx. Keep complaint uploads under `media/` private. The Nginx example exposes only `/media/council/logos/` for public council branding; configure the equivalent public media path on other hosts and use persistent media storage. Serve attachments only through an authorization-checked Django view when that feature is enabled. Run migrations before release and create a backup before every migration.
 
 On Render, the application automatically adds `RENDER_EXTERNAL_HOSTNAME` to
 `ALLOWED_HOSTS`. For custom domains, set `DJANGO_ALLOWED_HOSTS` to a comma-separated
@@ -43,3 +43,7 @@ Django 4.2 application. Install the updated requirements and run `collectstatic`
 on deployment to publish Unfold's fonts, styles, and scripts. All model admins,
 including users and groups, inherit Unfold's `ModelAdmin`. Arabic navigation is
 configured in `UNFOLD` in `config/settings.py`. Reports are at `/staff/reports/`.
+
+## Council logo
+
+In the admin, open **بيانات البلدية**, edit the council record (or create it), upload **شعار البلدية**, and save. The logo appears in the public website header. Clear the image to restore the default mark. Install requirements and run migrations before using this field.
