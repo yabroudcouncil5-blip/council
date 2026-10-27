@@ -15,6 +15,12 @@ cp .env.example .env
 
 Use PostgreSQL, a long random `DJANGO_SECRET_KEY`, `DJANGO_DEBUG=0`, `DJANGO_ALLOWED_HOSTS`, HTTPS, secure cookies, Gunicorn, and Nginx. Keep `media/` private; production URL routing deliberately does not expose `/media/`. Serve attachments only through an authorization-checked Django view when that feature is enabled. Run migrations before release and create a backup before every migration.
 
+On Render, the application automatically adds `RENDER_EXTERNAL_HOSTNAME` to
+`ALLOWED_HOSTS`. For custom domains, set `DJANGO_ALLOWED_HOSTS` to a comma-separated
+list of hostnames without `https://` or paths. To resolve a 400 on the existing
+deployment immediately, set `DJANGO_ALLOWED_HOSTS=yabroud-council.onrender.com`
+in Render's Environment settings and redeploy. Keep `DJANGO_DEBUG=0`.
+
 Recommended cron jobs:
 
 ```text
