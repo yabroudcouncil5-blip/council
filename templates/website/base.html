@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>{% block title %}{{ council.name|default:'بلدية يبرود' }}{% endblock %}</title>
-  <meta name="description" content="الموقع الرسمي لبلدية يبرود والخدمات البلدية الإلكترونية">
+  <meta name="description" content="{% block meta_description %}الموقع الرسمي لبلدية يبرود والخدمات البلدية الإلكترونية{% endblock %}">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -24,7 +24,7 @@
       </a>
       <nav class="desktop-nav" aria-label="القائمة الرئيسية">
         <a href="/" {% if request.path == '/' %}aria-current="page"{% endif %}>الرئيسية</a>
-        <a href="/about/">عن المدينة</a><a href="/services/">الخدمات</a><a href="/news/">الأخبار</a><a href="/contact/">تواصل معنا</a>
+        <a href="/about/" {% if request.path == '/about/' %}aria-current="page"{% endif %}>عن المدينة</a><a href="/services/">الخدمات</a><a href="/news/">الأخبار</a><a href="/contact/">تواصل معنا</a>
       </nav>
       <a class="button header-action" href="/complaints/submit/">تقديم شكوى <span aria-hidden="true">↖</span></a>
       <details class="mobile-menu"><summary aria-label="فتح القائمة">القائمة <span aria-hidden="true">☰</span></summary><nav aria-label="القائمة الرئيسية للجوال"><a href="/">الرئيسية</a><a href="/about/">عن المدينة</a><a href="/services/">الخدمات</a><a href="/news/">الأخبار</a><a href="/contact/">تواصل معنا</a><a href="/complaints/submit/">تقديم شكوى</a></nav></details>

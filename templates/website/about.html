@@ -1,0 +1,58 @@
+{% extends 'website/base.html' %}
+{% load static website_content %}
+{% block title %}عن مدينة يبرود | {{ council.name|default:'مجلس مدينة يبرود' }}{% endblock %}
+{% block meta_description %}تعرّف على يبرود في القلمون السوري: موقعها وطبيعتها، تاريخها العريق ومغاورها الأثرية، معالمها المعمارية وحياتها الصناعية والاجتماعية.{% endblock %}
+{% block body_class %}about-city-page{% endblock %}
+{% block main_class %}about-city-main{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'website/about.css' %}">{% endblock %}
+{% block content %}
+<section class="city-history-hero" aria-labelledby="city-title">
+  <img class="history-hero-photo" src="{% static 'website/images/yabroud-panorama.webp' %}" width="1770" height="934" alt="إطلالة واسعة على يبرود وجبال القلمون وبساتينها" fetchpriority="high">
+  <div class="shell history-hero-inner">
+    <div class="history-hero-panel">
+      <nav class="city-breadcrumb" aria-label="مسار التصفح"><a href="/">الرئيسية</a><span aria-hidden="true">/</span><span aria-current="page">عن المدينة</span></nav>
+      <p class="eyebrow">من قلب القلمون</p>
+      <h1 id="city-title">يبرود.<br>حكاية الإنسان<br><em>والمكان.</em></h1>
+      <p>بين الجبال والمغاور والبيوت الحجرية، مدينة تحمل في اسمها فصلاً من تاريخ الإنسان، وفي شوارعها حكاية أهلٍ يصنعون الحياة بالعلم والعمل والانتماء.</p>
+      <a class="text-link" href="#city-history">اكتشف حكاية المدينة <span aria-hidden="true">↓</span></a>
+    </div>
+  </div>
+</section>
+
+<div class="city-facts-band"><dl class="shell city-facts"><div><dt>الموقع</dt><dd>القلمون <span>محافظة ريف دمشق</span></dd></div><div><dt>عن دمشق</dt><dd>نحو ٨٠ كم <span>إلى الشمال من العاصمة</span></dd></div><div><dt>الارتفاع</dt><dd>نحو ١٤٠٠ م <span>فوق سطح البحر</span></dd></div><div><dt>ملامح المدينة</dt><dd>تراث وعمل <span>طبيعة جبلية وهوية صناعية</span></dd></div></dl></div>
+
+<section class="shell city-overview" aria-labelledby="city-overview-title">
+  <div><p class="eyebrow">مدينة لها مكانتها</p><h2 id="city-overview-title">جذور في التاريخ.<br>وحضور في الحياة.</h2></div>
+  <div class="city-prose"><p class="city-lead">تقع يبرود في منطقة القلمون شمال دمشق، ضمن محافظة ريف دمشق، ويمنحها موقعها بين المرتفعات والأودية شخصية عمرانية وطبيعية مميزة.</p><p>تجاور أحياؤها الجروف الصخرية والبساتين، وتطل عليها تلة الأوز التي تشكّل إحدى العلامات البصرية المألوفة لأهلها. وعلى ارتفاع يقارب ١٤٠٠ متر، تتميز بشتاء بارد قد تتساقط فيه الثلوج وصيف جاف، في مشهد يجمع صخور القلمون وأشجاره وامتداد البيوت على السفوح.</p><p>ليست يبرود معالم قديمة فحسب؛ فهي أيضاً مدينة للحرف والصناعة والتجارة والتعليم. وتتجلى هويتها في صلة أهلها بالمكان، وفي تداخل الذاكرة المحلية مع تفاصيل العمل والحياة اليومية.</p></div>
+</section>
+
+<section class="city-history-section" id="city-history" aria-labelledby="history-title">
+  <div class="shell">
+    <div class="history-section-heading"><p class="eyebrow">على امتداد الزمن</p><h2 id="history-title">محطات من حكاية يبرود.</h2><p>من الملاجئ الصخرية إلى المدينة المعاصرة، تتعاقب الشواهد وتبقى علاقة الإنسان بهذه الأرض حاضرة.</p></div>
+    <ol class="city-timeline">
+      <li><div class="timeline-era"><span>الجذور الأولى</span><h3>عصور ما قبل التاريخ</h3></div><div class="timeline-story"><h4>اسم مدينة في تاريخ الحضارة</h4><p>منحت مواقع يبرود اسمها للصناعة الحجرية «اليبرودية»، وهي من التقاليد المميزة في دراسة عصور ما قبل التاريخ في بلاد الشام. وتكشف ملاجئ وادي إسكفتا عن تعاقب جماعات بشرية تركت أدواتها وآثار حياتها في طبقات متراكمة، فغدت المنطقة موقعاً مهماً لفهم تطور تقنيات الإنسان القديم وعلاقته ببيئته.</p></div></li>
+      <li><div class="timeline-era"><span>المدينة القديمة</span><h3>العصور الكلاسيكية</h3></div><div class="timeline-story"><h4>الحجر شاهد على تعاقب العصور</h4><p>تضم يبرود ومحيطها شواهد من العصور الرومانية والبيزنطية، من المنشآت الدينية إلى المدافن المحفورة في الصخر. وتبرز كاتدرائية القديسين قسطنطين وهيلانة، المقامة في موقع معبد قديم، مثالاً على استمرار المكان وتحوّل وظائفه عبر الزمن.</p></div></li>
+      <li><div class="timeline-era"><span>ذاكرة العمران</span><h3>العصور الإسلامية</h3></div><div class="timeline-story"><h4>معالم متجاورة وذاكرة مشتركة</h4><p>أضافت العصور الإسلامية إلى نسيج يبرود جوامع وأحياء وشواهد عمرانية، ويُعد جامع الخضر من معالمها المعروفة. وتجاور دور العبادة في قلب المدينة جزء من صورتها التاريخية ومن الحياة الاجتماعية التي جمعت أهلها على اختلاف انتماءاتهم.</p></div></li>
+      <li><div class="timeline-era"><span>اكتشاف الماضي</span><h3><bdi>١٩٣٠–١٩٣٣</bdi></h3></div><div class="timeline-story"><h4>مغاور يبرود تدخل البحث الأثري</h4><p>أجرى ألفريد روست تنقيبات في الملاجئ الصخرية كشفت تتابعاً غنياً للأدوات والطبقات الأثرية. ثم واصلت بعثات لاحقة دراسة المنطقة، ومنها أعمال رالف سوليكي في ستينيات القرن العشرين. وأتاحت هذه الأبحاث قراءة فترات متعددة من الاستيطان البشري، وأبرزت أهمية يبرود في أبحاث العصر الحجري.</p></div></li>
+      <li><div class="timeline-era"><span>العمل والإنتاج</span><h3>القرن العشرون</h3></div><div class="timeline-story"><h4>خبرة محلية وهوية صناعية</h4><p>برزت يبرود مركزاً صناعياً وحرفياً في القلمون، واشتهرت بمنتجات البلاستيك والأدوات المنزلية ومواد التغليف، إلى جانب النجارة والأعمال المعدنية. وارتبطت هذه الأنشطة بخبرات تناقلتها الأجيال وبشبكات تجارية امتدت خارج المدينة، فأصبح العمل والإتقان جزءاً أساسياً من هويتها.</p></div></li>
+      <li><div class="timeline-era"><span>المدينة وأهلها</span><h3>الحاضر والمستقبل</h3></div><div class="timeline-story"><h4>نحفظ الذاكرة ونعتني بالحياة</h4><p>تجمع يبرود بين مسؤولية صون تراثها وحاجتها إلى تطوير خدماتها وفضاءاتها العامة. وتبدأ العناية بالمدينة من حماية معالمها، والاهتمام بأحيائها وبيئتها، ودعم المشاركة المجتمعية التي تجعل تحسين المكان شأناً يخص كل من يعيش فيه.</p></div></li>
+    </ol>
+  </div>
+</section>
+
+<section class="shell city-landmarks" aria-labelledby="landmarks-title">
+  <div class="section-head"><div><p class="eyebrow">ملامح لا تشبه سواها</p><h2 id="landmarks-title">أماكن تحمل روح المدينة.</h2></div></div>
+  <div class="landmarks-grid">
+    <figure><img src="{% static 'website/images/yabroud-rocks.webp' %}" width="1496" height="1102" alt="الجروف الصخرية الطبيعية في محيط يبرود" loading="lazy"><figcaption><span>الطبيعة والآثار</span><h3>الجروف والملاجئ الصخرية</h3><p>تشكّل الصخور والأودية إطاراً طبيعياً لهوية يبرود، وتحتضن المنطقة مواقع أثرية تروي فصولاً من عصور ما قبل التاريخ.</p></figcaption></figure>
+    <figure><img src="{% static 'website/images/yabroud-church.webp' %}" width="1316" height="1240" alt="واجهة كنيسة تاريخية وبرج الساعة في يبرود" loading="lazy"><figcaption><span>الذاكرة المعمارية</span><h3>عمارة الحجر ودور العبادة</h3><p>تمنح الواجهات الحجرية والأقواس وأبراج الكنائس ومآذن الجوامع قلب المدينة تنوعه المعماري وملامحه المألوفة.</p></figcaption></figure>
+    <figure><img src="{% static 'website/images/yabroud-hill.webp' %}" width="960" height="720" alt="تلة الأوز المشجرة فوق أحياء يبرود" loading="lazy"><figcaption><span>المشهد الطبيعي</span><h3>تلة الأوز</h3><p>تعلو التلة المشجرة مشهد البيوت، وتبقى علامة بارزة في أفق يبرود وعنصراً من صورتها في ذاكرة أهلها.</p></figcaption></figure>
+    <figure><img src="{% static 'website/images/yabroud-street.webp' %}" width="480" height="640" alt="مجسم دلة القهوة المضاء بين أبنية يبرود" loading="lazy"><figcaption><span>الحياة اليومية</span><h3>شوارع تحكي عن أهلها</h3><p>في الشوارع والساحات والتفاصيل الصغيرة تتجسد صلة الناس بمدينتهم، وتلتقي الذاكرة المحلية بإيقاع الحياة المعاصرة.</p></figcaption></figure>
+  </div>
+</section>
+
+<section class="city-community-section"><div class="shell city-community"><div><p class="eyebrow">أهل يبرود</p><h2>المدينة تُعرف<br>بناسها أيضاً.</h2></div><div class="city-prose"><p class="city-lead">وراء المعالم والحجارة، مجتمع ارتبط بالتعليم والحرفة وروابط الجيرة.</p><p>عرفت يبرود نشاطاً تعليمياً منذ القرن التاسع عشر، وتطورت فيها مدارس ومؤسسات للتعليم العام والمهني. وإلى جانب المعرفة، حافظت الحرف على مكانتها، من النجارة إلى الصناعات الصغيرة التي تصل خبرة اليد بالابتكار والعمل.</p><p>وتمنح العلاقات بين أهل المدينة نسيجها الاجتماعي خصوصيته؛ فاللقاءات اليومية والتعاون في شؤون الحي والاهتمام بالمكان تشكّل وجهاً آخر لتراث يبرود، تراثاً يعيش في الناس بقدر ما يبقى في المباني.</p></div></div></section>
+
+{% if city_page.body %}<section class="shell city-editor-content" aria-labelledby="city-editor-title"><p class="eyebrow">من مجلس المدينة</p><h2 id="city-editor-title">{{ city_page.title }}</h2><div class="rich-content">{{ city_page.body|rich_content }}</div></section>{% endif %}
+
+<section class="shell city-history-cta"><div><p class="eyebrow">انتماء نترجمه إلى عمل</p><h2>يبرود تجمعنا.<br>والعناية بها مسؤوليتنا.</h2><p>تعرّف على الخدمات البلدية، وشارك ملاحظاتك واحتياجات حيّك مع مجلس المدينة.</p></div><div class="history-cta-actions"><a class="button" href="/services/">الخدمات البلدية <span aria-hidden="true">←</span></a><a class="text-link" href="/contact/">تواصل مع المجلس <span aria-hidden="true">←</span></a></div></section>
+{% endblock %}

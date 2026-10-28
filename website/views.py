@@ -62,6 +62,10 @@ def home(request):
     return response
 
 def simple(request, slug):
+    if slug == 'about':
+        return render(request, 'website/about.html', {
+            **ctx(), 'city_page': Page.objects.filter(slug='about', published=True).first(),
+        })
     item=Page.objects.filter(slug=slug,published=True).first(); fallback={'about':('عن البلدية','تعمل بلدية يبرود على تقديم الخدمات البلدية وتحسين المدينة.'),'services':('الخدمات البلدية','النظافة والبيئة، الطرق والإنارة، المياه والصرف الصحي، والخدمات الإدارية.')}; title,body=(item.title,item.body) if item else fallback.get(slug,('بلدية يبرود','المحتوى قيد التحديث.')); return render(request,'website/page.html',{**ctx(),'title':title,'body':body})
 def news(request): return render(request,'website/news.html',{**ctx(),'news':NewsArticle.objects.filter(published=True)})
 def departments(request): return render(request,'website/departments.html',{**ctx(),'departments':Department.objects.filter(active=True)})

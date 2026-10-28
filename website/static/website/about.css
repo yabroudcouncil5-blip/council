@@ -1,0 +1,54 @@
+.about-city-main{overflow:hidden}
+.city-history-hero{position:relative;isolation:isolate;background:var(--soft)}
+.history-hero-photo{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 60%;z-index:-1}
+.history-hero-inner{display:flex;min-height:650px;align-items:stretch}
+.history-hero-panel{width:51%;padding:35px 45px 55px;background:#f6f6f1f5;display:flex;flex-direction:column;justify-content:center}
+.city-breadcrumb{display:flex;align-items:center;gap:12px;font-size:12px;color:var(--muted);margin-bottom:45px}
+.city-breadcrumb a{color:inherit}
+.history-hero-panel .eyebrow:before{content:'';display:inline-block;vertical-align:middle;width:30px;height:2px;margin-inline-end:12px;background:var(--gold)}
+.history-hero-panel h1{font-size:clamp(42px,5.5vw,74px);font-weight:500;line-height:1.3;letter-spacing:-1.5px;margin-bottom:24px}
+.history-hero-panel h1 em{font-style:normal;color:var(--teal)}
+.history-hero-panel>p:not(.eyebrow){max-width:450px;font-size:16px;color:#5e685f;line-height:2.1;margin-bottom:26px}
+.city-facts-band{background:var(--deep);color:white}
+.city-facts{display:grid;grid-template-columns:repeat(4,1fr);margin-block:0;padding-block:32px}
+.city-facts>div{padding-inline:28px;border-inline-start:1px solid #ffffff26}
+.city-facts>div:first-child{border:0;padding-inline-start:0}
+.city-facts dt{font-size:12px;color:#c3d8ce;margin-bottom:8px}
+.city-facts dd{margin:0;font-size:24px;font-weight:500;line-height:1.7}
+.city-facts dd span{display:block;font-size:12px;font-weight:400;color:#c3d8ce;margin-top:4px}
+.city-overview,.city-community{display:grid;grid-template-columns:.85fr 1.3fr;gap:100px;padding-block:95px}
+.about-city-page h2{font-size:clamp(29px,3.1vw,42px);font-weight:500;line-height:1.6;margin-bottom:22px}
+.city-prose p{font-size:15px;line-height:2.2;color:#697169;margin-bottom:20px}
+.city-prose .city-lead{color:var(--ink);font-size:19px;line-height:2}
+.city-prose p:last-child{margin-bottom:0}
+.city-history-section{background:var(--soft);padding-block:85px;scroll-margin-top:125px}
+.history-section-heading{max-width:680px;margin-bottom:55px}
+.history-section-heading>p:last-child{color:var(--muted);font-size:15px}
+.city-timeline{list-style:none;padding:0;margin:0}
+.city-timeline>li{display:grid;grid-template-columns:240px 1fr;gap:70px;padding-block:0 40px;position:relative}
+.city-timeline>li:last-child{padding-bottom:0}
+.timeline-era{border-top:1px solid #d9dfd6;padding-top:22px}
+.timeline-era>span{font-size:11px;color:var(--teal)}
+.timeline-era h3{font-size:24px;line-height:1.7;font-weight:500;margin:6px 0 0}
+.timeline-story{position:relative;border-inline-start:1px solid #d3dcd2;padding:22px 38px 16px 0}
+.timeline-story:before{content:'';position:absolute;inset-inline-start:-5px;top:30px;width:9px;height:9px;background:var(--teal);border-radius:50%;box-shadow:0 0 0 5px var(--soft)}
+.timeline-story h4{font-size:22px;font-weight:500;margin:0 0 14px}
+.timeline-story p{color:#697169;font-size:15px;line-height:2.2;max-width:750px;margin:0}
+.city-landmarks{padding-block:95px}
+.landmarks-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:24px}
+.landmarks-grid figure{min-width:0}
+.landmarks-grid img{width:100%;height:275px;object-fit:cover;display:block;border-radius:4px}
+.landmarks-grid figure:nth-child(2) img{object-position:50% 35%}
+.landmarks-grid figcaption{padding-top:22px}
+.landmarks-grid figcaption>span{font-size:11px;color:var(--teal)}
+.landmarks-grid h3{font-size:20px;font-weight:500;margin:7px 0 12px}
+.landmarks-grid p{font-size:13px;color:var(--muted);line-height:2;margin:0}
+.city-community-section{background:var(--green-pale)}
+.city-editor-content{padding-block:70px;border-bottom:1px solid var(--line)}
+.city-history-cta{display:flex;justify-content:space-between;align-items:center;gap:40px;padding-block:85px}
+.city-history-cta p:last-child{font-size:14px;color:var(--muted);margin-bottom:0}
+.history-cta-actions{display:flex;flex-direction:column;align-items:center;gap:24px;flex-shrink:0}
+@media(min-width:1600px){.history-hero-panel{box-shadow:400px 0 var(--soft)}}
+@media(max-width:1000px){.history-hero-panel{width:60%;padding-inline:30px}.history-hero-inner{min-height:600px}.city-overview,.city-community{gap:45px}.city-facts>div{padding-inline:16px}.city-facts dd{font-size:20px}.city-timeline>li{grid-template-columns:190px 1fr;gap:35px}.landmarks-grid{grid-template-columns:repeat(2,minmax(0,1fr));row-gap:35px}.landmarks-grid img{height:300px}}
+@media(max-width:600px){.history-hero-photo{position:static;height:255px;object-position:center}.history-hero-inner{min-height:0;display:block;padding-inline:0}.history-hero-panel{width:100%;padding:26px 22px 40px;background:var(--soft)}.city-breadcrumb{margin-bottom:28px;font-size:11px}.history-hero-panel h1{font-size:48px;letter-spacing:-1px}.history-hero-panel>p:not(.eyebrow){font-size:14px}.city-facts{grid-template-columns:repeat(2,minmax(0,1fr));row-gap:24px;padding-block:28px}.city-facts>div{padding-inline:16px}.city-facts>div:nth-child(odd){padding-inline-start:0;border:0}.city-facts dd{font-size:20px}.city-facts dd span{font-size:10px}.city-overview,.city-community{grid-template-columns:1fr;gap:14px;padding-block:50px}.city-prose .city-lead{font-size:17px}.city-prose p{font-size:14px}.city-history-section{padding-block:50px;scroll-margin-top:100px}.history-section-heading{margin-bottom:35px}.city-timeline>li{grid-template-columns:1fr;gap:12px;padding-bottom:30px}.timeline-era{padding-top:20px}.timeline-era h3{font-size:23px;margin-top:3px}.timeline-story{margin-inline-start:4px;padding:12px 23px 8px 0}.timeline-story:before{top:23px}.timeline-story h4{font-size:20px}.timeline-story p{font-size:14px}.city-landmarks{padding-block:50px}.landmarks-grid{gap:28px 16px}.landmarks-grid img{height:200px}.landmarks-grid figcaption{padding-top:15px}.landmarks-grid h3{font-size:17px}.landmarks-grid p{font-size:12px}.city-history-cta{flex-direction:column;align-items:stretch;padding-block:50px;gap:28px}.history-cta-actions{align-items:flex-start;gap:20px}.city-editor-content{padding-block:45px}}
+@media(max-width:380px){.landmarks-grid{grid-template-columns:1fr}.landmarks-grid img{height:260px}}
