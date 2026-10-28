@@ -1,0 +1,5 @@
+{% extends 'website/base.html' %}{% load static website_content %}
+{% block title %}{{ item.title }} | أخبار يبرود{% endblock %}
+{% block body_class %}news-detail-page{% endblock %}{% block main_class %}news-detail-main{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'website/news.css' %}">{% endblock %}
+{% block content %}<article class="news-detail shell"><nav class="news-breadcrumb" aria-label="مسار التصفح"><a href="/">الرئيسية</a><span>/</span><a href="/news/">الأخبار</a><span>/</span><span aria-current="page">التفاصيل</span></nav><div class="news-detail-heading"><span class="news-meta">أخبار وإعلانات{% if item.published_at %} <bdi>· {{ item.published_at|date:'Y/m/d' }}</bdi>{% endif %}</span><h1>{{ item.title }}</h1></div>{% if item.featured_image %}<figure class="news-detail-image"><img src="{{ item.featured_image.url }}" alt="{{ item.title }}"></figure>{% endif %}<div class="news-detail-body rich-content">{{ item.body|rich_content }}</div><a class="text-link news-back" href="/news/">العودة إلى الأخبار <span>←</span></a></article>{% endblock %}
