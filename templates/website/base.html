@@ -24,10 +24,10 @@
       </a>
       <nav class="desktop-nav" aria-label="القائمة الرئيسية">
         <a href="/" {% if request.path == '/' %}aria-current="page"{% endif %}>الرئيسية</a>
-        <a href="/about/" {% if request.path == '/about/' %}aria-current="page"{% endif %}>عن المدينة</a><a href="/services/">الخدمات</a><a href="/news/">الأخبار</a><a href="/contact/">تواصل معنا</a>
+        <a href="/about/" {% if request.path == '/about/' %}aria-current="page"{% endif %}>عن المدينة</a><a href="/departments/">الأقسام والخدمات</a><a href="/council/">مجلس المدينة</a><a href="/news/">الأخبار</a><a href="/contact/">تواصل معنا</a>
       </nav>
       <a class="button header-action" href="/complaints/submit/">تقديم شكوى <span aria-hidden="true">↖</span></a>
-      <details class="mobile-menu"><summary aria-label="فتح القائمة">القائمة <span aria-hidden="true">☰</span></summary><nav aria-label="القائمة الرئيسية للجوال"><a href="/">الرئيسية</a><a href="/about/">عن المدينة</a><a href="/services/">الخدمات</a><a href="/news/">الأخبار</a><a href="/contact/">تواصل معنا</a><a href="/complaints/submit/">تقديم شكوى</a></nav></details>
+      <details class="mobile-menu"><summary aria-label="فتح القائمة">القائمة <span aria-hidden="true">☰</span></summary><nav aria-label="القائمة الرئيسية للجوال"><a href="/">الرئيسية</a><a href="/about/">عن المدينة</a><a href="/departments/">الأقسام والخدمات</a><a href="/council/">مجلس المدينة</a><a href="/news/">الأخبار</a><a href="/contact/">تواصل معنا</a><a href="/complaints/submit/">تقديم شكوى</a></nav></details>
     </div>
   </header>
   <main id="main-content" class="{% block main_class %}shell inner-page{% endblock %}">{% block content %}{% endblock %}</main>
