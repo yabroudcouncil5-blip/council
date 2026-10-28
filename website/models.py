@@ -5,6 +5,22 @@ class ContentImage(models.Model):
     image = models.ImageField(upload_to='website/images/')
     created_at = models.DateTimeField(auto_now_add=True)
 
+class ExecutiveMember(models.Model):
+    class Meta:
+        verbose_name = 'عضو الفريق التنفيذي'
+        verbose_name_plural = 'الفريق التنفيذي'
+        ordering = ('display_order', 'id')
+
+    def __str__(self):
+        return self.name
+
+    name = models.CharField(max_length=160, verbose_name='الاسم')
+    role = models.CharField(max_length=180, verbose_name='المسمى الوظيفي')
+    bio = models.TextField(verbose_name='نبذة قصيرة')
+    photo = models.ImageField(upload_to='council/team/', blank=True, verbose_name='صورة العضو')
+    display_order = models.PositiveIntegerField(default=0, verbose_name='ترتيب العرض')
+    active = models.BooleanField(default=True, verbose_name='ظاهر على الموقع')
+
 class Page(models.Model):
     class Meta:
         verbose_name = 'صفحة'

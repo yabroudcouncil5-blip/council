@@ -1,6 +1,6 @@
 from django.contrib import admin
 from unfold.admin import ModelAdmin
-from .models import Page, NewsArticle, DepartmentPage
+from .models import Page, NewsArticle, DepartmentPage, ExecutiveMember
 from .forms import PageForm, NewsForm
 
 @admin.register(NewsArticle)
@@ -29,3 +29,14 @@ class DepartmentPageAdmin(ModelAdmin):
     list_display = ('name', 'published', 'contact')
     list_filter = ('published',)
     search_fields = ('name', 'description')
+
+@admin.register(ExecutiveMember)
+class ExecutiveMemberAdmin(ModelAdmin):
+    list_display = ('name', 'role', 'display_order', 'active')
+    list_filter = ('active',)
+    search_fields = ('name', 'role', 'bio')
+    list_editable = ('display_order', 'active')
+    fieldsets = (
+        ('بيانات العضو', {'fields': ('name', 'role', 'bio', 'photo')}),
+        ('العرض', {'fields': ('display_order', 'active')}),
+    )
