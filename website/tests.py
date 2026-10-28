@@ -10,6 +10,38 @@ from core.models import CouncilSettings
 
 
 class CouncilLogoTests(TestCase):
+    def test_header_logo_is_small_cacheable_and_supports_revalidation(self):
+        with tempfile.TemporaryDirectory() as media, override_settings(MEDIA_ROOT=media):
+            image = BytesIO()
+            Image.new('RGBA', (1600, 800), (0, 128, 0, 128)).save(image, 'PNG')
+            council = CouncilSettings.objects.create(
+                name='Council', logo=SimpleUploadedFile('large.png', image.getvalue()),
+            )
+            url = council.logo.url + '?size=120'
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response['Content-Type'], 'image/webp')
+            self.assertIn('public', response['Cache-Control'])
+            self.assertIn('max-age=86400', response['Cache-Control'])
+            with Image.open(BytesIO(response.content)) as thumbnail:
+                self.assertEqual(thumbnail.size, (120, 60))
+                self.assertIn('A', thumbnail.getbands())
+            self.assertLess(len(response.content), len(image.getvalue()))
+            cached = self.client.get(url, HTTP_IF_NONE_MATCH=response['ETag'])
+            self.assertEqual(cached.status_code, 304)
+            self.assertEqual(cached.content, b'')
+            self.assertEqual(cached['ETag'], response['ETag'])
+            self.assertContains(self.client.get('/'), '?size=120&amp;v=')
+
+            previous_etag = response['ETag']
+            previous_page = self.client.get('/').content
+            council.logo = SimpleUploadedFile('replacement.png', image.getvalue())
+            council.save()
+            changed = self.client.get(council.logo.url + '?size=120', HTTP_IF_NONE_MATCH=previous_etag)
+            self.assertEqual(changed.status_code, 200)
+            self.assertNotEqual(changed['ETag'], previous_etag)
+            self.assertNotEqual(self.client.get('/').content, previous_page)
+
     def test_logo_upload_display_and_removal(self):
         with tempfile.TemporaryDirectory() as media, override_settings(MEDIA_ROOT=media):
             user = get_user_model().objects.create_superuser('admin', 'admin@example.com', 'test-password')

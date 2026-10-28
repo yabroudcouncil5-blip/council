@@ -19,7 +19,7 @@
   <header class="site-header">
     <div class="shell header-inner">
       <a class="brand" href="/" aria-label="{{ council.name|default:'بلدية يبرود' }} — الرئيسية">
-        {% if council.logo %}<img class="council-logo" src="{{ council.logo.url }}" alt="شعار {{ council.name }}" width="60" height="60">{% else %}<span class="mark">ي</span>{% endif %}
+        {% if council.logo %}<img class="council-logo" src="{{ council.logo.url }}?size=120&amp;v={{ council.updated_at|date:'U.u' }}" alt="شعار {{ council.name }}" width="60" height="60" decoding="async">{% else %}<span class="mark">ي</span>{% endif %}
         <span>{{ council.name|default:'بلدية يبرود' }}<small>الموقع الرسمي لمجلس المدينة</small></span>
       </a>
       <nav class="desktop-nav" aria-label="القائمة الرئيسية">
