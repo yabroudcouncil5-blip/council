@@ -13,6 +13,7 @@ class CouncilSettings(models.Model):
     description = models.TextField(blank=True, verbose_name='الوصف')
     phone = models.CharField(max_length=80, blank=True, verbose_name='رقم الهاتف')
     email = models.EmailField(blank=True, verbose_name='البريد الإلكتروني')
+    facebook_url = models.URLField(blank=True, verbose_name='صفحة فيسبوك المجلس')
     address = models.CharField(max_length=255, blank=True, verbose_name='العنوان')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='آخر تحديث')
 

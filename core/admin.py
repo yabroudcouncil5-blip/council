@@ -18,6 +18,10 @@ class DepartmentAdmin(ModelAdmin):
 @admin.register(CouncilSettings)
 class CouncilSettingsAdmin(ModelAdmin):
     list_display = ('name', 'phone', 'email', 'updated_at')
+    fieldsets = (
+        ('بيانات البلدية', {'fields': ('name', 'logo', 'description')}),
+        ('بيانات التواصل', {'fields': ('address', 'phone', 'email', 'facebook_url')}),
+    )
 
 @admin.register(AuditLog)
 class AuditLogAdmin(ModelAdmin):
