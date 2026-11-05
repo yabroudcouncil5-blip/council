@@ -154,6 +154,10 @@ html[dir="rtl"] #content select:not([multiple]) { padding-right: 12px; padding-l
 html[dir="rtl"] #content select:not([multiple]) + .material-symbols-outlined { right: auto; left: 10px; margin: 0; }
 html[dir="rtl"] #content .field-row:has(input[type="checkbox"]) label { margin-inline-start: 10px; }
 #content .related-widget-wrapper { min-width: 0; }
+#content .field-reason .dashboard-review-notes { min-height: 88px; height: 88px; resize: vertical; }
+#content .inline-group .field-department { min-width: 190px; }
+#content .inline-group .field-status, #content .inline-group .field-priority { min-width: 120px; }
+#content .inline-group .field-due_at { min-width: 210px; }
 html[dir="rtl"] #content table th,
 html[dir="rtl"] #content table td { text-align: start; vertical-align: middle; }
 #result_list .action-checkbox,

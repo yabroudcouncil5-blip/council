@@ -1,6 +1,8 @@
 from django import forms
 from django.contrib import admin
 from unfold.admin import ModelAdmin, TabularInline
+from unfold.widgets import UnfoldAdminSelectWidget, UnfoldAdminTextareaWidget
+from core.admin_widgets import SelectionOnlyRelatedFieldsMixin
 
 from .models import (
     Complaint, ComplaintAssignment, AssignmentAction, ComplaintAttachment,
@@ -28,15 +30,18 @@ ASSIGNMENT_STATES = [
     ('assigned', 'مسندة'), ('in_progress', 'قيد التنفيذ'), ('submitted', 'بانتظار الاعتماد'),
     ('approved', 'معتمدة'), ('returned', 'معادة للاستكمال'), ('cancelled', 'ملغاة'),
 ]
+ASSIGNMENT_PRIORITIES = [
+    ('low', 'منخفضة'), ('medium', 'متوسطة'), ('high', 'مرتفعة'), ('urgent', 'عاجلة'),
+]
 
 
-class CouncilAdmin(ModelAdmin):
+class CouncilAdmin(SelectionOnlyRelatedFieldsMixin, ModelAdmin):
     list_per_page = 25
     list_filter_submit = True
     save_on_top = True
 
     def formfield_for_choice_field(self, db_field, request, **kwargs):
-        kwargs['widget'] = forms.RadioSelect(attrs={'class': 'officer-choices'})
+        kwargs['widget'] = UnfoldAdminSelectWidget
         return super().formfield_for_choice_field(db_field, request, **kwargs)
 
     def formfield_for_dbfield(self, db_field, request, **kwargs):
@@ -57,26 +62,65 @@ class HistoryInline(TabularInline):
     def has_add_permission(self, request, obj=None):
         return False
 
-class AssignmentInline(TabularInline):
+class AssignmentInlineForm(forms.ModelForm):
+    status = forms.ChoiceField(label='الحالة', choices=ASSIGNMENT_STATES, widget=UnfoldAdminSelectWidget)
+    priority = forms.ChoiceField(label='الأولوية', choices=ASSIGNMENT_PRIORITIES, widget=UnfoldAdminSelectWidget)
+
+    class Meta:
+        model = ComplaintAssignment
+        fields = ('department', 'status', 'priority', 'due_at')
+        widgets = {'due_at': forms.DateTimeInput(attrs={'type': 'datetime-local'}, format='%Y-%m-%dT%H:%M')}
+
+
+class AssignmentInline(SelectionOnlyRelatedFieldsMixin, TabularInline):
     model = ComplaintAssignment
+    form = AssignmentInlineForm
     extra = 0
+    can_delete = False
     fields = ('department', 'status', 'priority', 'due_at', 'assigned_at')
     readonly_fields = ('assigned_at',)
     verbose_name = 'إحالة إلى قسم'
     verbose_name_plural = 'الإحالات إلى الأقسام'
 
-class ReviewInline(TabularInline):
+class ReviewInlineForm(forms.ModelForm):
+    decision = forms.ChoiceField(
+        label='قرار المراجعة',
+        choices=[('', 'اختر قرار المراجعة'), *ComplaintReview.DECISIONS],
+        widget=UnfoldAdminSelectWidget,
+    )
+
+    class Meta:
+        model = ComplaintReview
+        fields = ('decision', 'reason')
+        widgets = {
+            'decision': UnfoldAdminSelectWidget,
+            'reason': UnfoldAdminTextareaWidget(attrs={'rows': 3, 'class': 'dashboard-review-notes'}),
+        }
+
+
+class ReviewInline(SelectionOnlyRelatedFieldsMixin, TabularInline):
     model = ComplaintReview
+    form = ReviewInlineForm
     extra = 0
-    fields = ('decision', 'reviewer', 'reason', 'created_at')
-    readonly_fields = ('created_at',)
+    can_delete = False
+    fields = ('decision', 'reason', 'reviewer', 'created_at')
+    readonly_fields = ('reviewer', 'created_at')
     verbose_name = 'مراجعة'
     verbose_name_plural = 'سجل المراجعات'
+
+    def get_formset(self, request, obj=None, **kwargs):
+        BaseFormSet = super().get_formset(request, obj, **kwargs)
+
+        class CurrentReviewerFormSet(BaseFormSet):
+            def save_new(self, form, commit=True):
+                form.instance.reviewer = request.user
+                return super().save_new(form, commit=commit)
+
+        return CurrentReviewerFormSet
 
 
 @admin.register(Complaint)
 class ComplaintAdmin(CouncilAdmin):
-    radio_fields = {'category': admin.VERTICAL}
     list_display = ('reference', 'title', 'category', 'status', 'submitted_at')
     list_filter = ('status', 'category', 'submitted_at')
     search_fields = ('reference', 'title', 'description', 'name', 'phone')
@@ -118,7 +162,6 @@ class AssignmentAdmin(CouncilAdmin):
     list_filter = ('status', 'priority', 'department')
     search_fields = ('complaint__reference', 'complaint__title', 'department__name', 'officer__username')
     autocomplete_fields = ('complaint',)
-    radio_fields = {'department': admin.VERTICAL, 'officer': admin.VERTICAL}
     list_select_related = ('complaint', 'department', 'officer')
     readonly_fields = ('assigned_at',)
     ordering = ('-assigned_at',)
@@ -131,9 +174,9 @@ class AssignmentAdmin(CouncilAdmin):
         if db_field.name == 'due_at':
             return forms.DateTimeField(label=LABELS['due_at'], required=False, widget=forms.DateTimeInput(attrs={'type': 'datetime-local'}, format='%Y-%m-%dT%H:%M'))
         field = super().formfield_for_dbfield(db_field, request, **kwargs)
-        choices = {'status': ASSIGNMENT_STATES, 'priority': [('low', 'منخفضة'), ('medium', 'متوسطة'), ('high', 'مرتفعة'), ('urgent', 'عاجلة')]}
+        choices = {'status': ASSIGNMENT_STATES, 'priority': ASSIGNMENT_PRIORITIES}
         if db_field.name in choices:
-            field = forms.ChoiceField(label=LABELS[db_field.name], choices=choices[db_field.name], widget=forms.RadioSelect(attrs={'class': 'officer-choices'}))
+            field = forms.ChoiceField(label=LABELS[db_field.name], choices=choices[db_field.name], widget=UnfoldAdminSelectWidget)
         return field
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):

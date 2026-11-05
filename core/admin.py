@@ -1,15 +1,16 @@
 from django.contrib import admin
 from unfold.admin import ModelAdmin
 from .models import CouncilSettings, Department, ComplaintCategory, AuditLog
+from .admin_widgets import SelectionOnlyRelatedFieldsMixin, SuperAdminReferenceDataMixin
 
 @admin.register(ComplaintCategory)
-class ComplaintCategoryAdmin(ModelAdmin):
+class ComplaintCategoryAdmin(SuperAdminReferenceDataMixin, SelectionOnlyRelatedFieldsMixin, ModelAdmin):
     list_display = ('name', 'default_days', 'active')
     list_filter = ('active',)
     search_fields = ('name',)
 
 @admin.register(Department)
-class DepartmentAdmin(ModelAdmin):
+class DepartmentAdmin(SuperAdminReferenceDataMixin, SelectionOnlyRelatedFieldsMixin, ModelAdmin):
     list_display = ('name', 'active')
     list_filter = ('active',)
     search_fields = ('name',)

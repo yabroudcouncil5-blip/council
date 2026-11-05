@@ -46,7 +46,7 @@ class CouncilDashboardTests(TestCase):
         self.assertFalse(form.is_valid())
         self.assertIn('assignment', form.errors)
 
-    def test_assignment_uses_visible_choices_and_saves_native_datetime(self):
+    def test_assignment_uses_compact_choices_and_saves_native_datetime(self):
         from django.contrib import admin
         from django.test import RequestFactory
         from django import forms
@@ -65,7 +65,7 @@ class CouncilDashboardTests(TestCase):
         self.assertEqual(assignment.due_at.hour, 10)
         for name in ['priority', 'status', 'department']:
             widget = form.fields[name].widget
-            self.assertIsInstance(getattr(widget, 'widget', widget), forms.RadioSelect)
+            self.assertIsInstance(getattr(widget, 'widget', widget), forms.Select)
         officer_widget = form.fields['officer'].widget
         self.assertIsInstance(getattr(officer_widget, 'widget', officer_widget), forms.HiddenInput)
         self.client.force_login(self.admin)
