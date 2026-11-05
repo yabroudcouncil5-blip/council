@@ -69,4 +69,4 @@ class CouncilDashboardTests(TestCase):
         self.client.force_login(self.admin)
         response = self.client.get('/admin/core/department/')
         self.assertContains(response, 'core/dashboard.')
-        self.assertContains(response, 'Noto+Sans+Arabic')
+        self.assertContains(response, 'Tajawal')

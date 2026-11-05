@@ -3,6 +3,7 @@
 {% block extrastyle %}
 {{ block.super }}
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,300,0,0">
 <link rel="stylesheet" href="{% static 'core/dashboard.css' %}">
 <script>
 document.addEventListener('DOMContentLoaded', function () {
@@ -13,7 +14,11 @@ document.addEventListener('DOMContentLoaded', function () {
   document.querySelectorAll('body *').forEach(function (el) {
     if (el.childNodes.length === 1 && /Search apps and models\.\.\./i.test(el.textContent)) el.textContent = 'بحث في الأقسام والنماذج...';
     if (el.childNodes.length === 1 && el.textContent.trim() === 'Log out') el.textContent = 'تسجيل الخروج';
+    if (el.childNodes.length === 1 && el.textContent.trim() === 'Filters') el.textContent = 'الفلاتر';
+    if (el.childNodes.length === 1 && el.textContent.trim() === 'Type to search') el.textContent = 'اكتب للبحث';
+    if (el.childNodes.length === 1 && el.textContent.trim() === 'search') el.textContent = 'بحث';
   });
+  document.querySelectorAll('.material-symbols-outlined').forEach(function (el) { el.style.fontFamily = 'Material Symbols Outlined'; });
 });
 </script>
 {% endblock %}

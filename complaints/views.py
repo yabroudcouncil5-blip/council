@@ -173,7 +173,11 @@ def complaint_workflow(request):
         return redirect(f'/staff/complaints/?complaint={complaint.pk}')
     complaints = Complaint.objects.order_by('-updated_at')
     selected = complaints.filter(pk=request.GET.get('complaint')).first() if request.GET.get('complaint') else complaints.first()
-    return render(request, 'staff/complaints.html', {'complaints': complaints, 'selected': selected, 'departments': Department.objects.filter(active=True), 'status_choices': Complaint.STATUS})
+    timeline = []
+    if selected:
+        labels = dict(Complaint.STATUS)
+        timeline = [(event, labels.get(event.status, event.status)) for event in selected.status_history.order_by('created_at', 'pk')]
+    return render(request, 'staff/complaints.html', {'complaints': complaints, 'selected': selected, 'timeline': timeline, 'departments': Department.objects.filter(active=True), 'status_choices': Complaint.STATUS})
 
 @login_required
 def dashboard_report(request):
