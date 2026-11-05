@@ -8,13 +8,20 @@ def tracking_result(data):
     if not complaint:
         return None
     labels = dict(Complaint.STATUS)
+    publication = getattr(complaint, 'publication', None)
+    is_public = bool(publication and publication.approved and publication.visibility in {'tracked', 'public'})
+    public_events = complaint.status_history.order_by('created_at', 'pk')
+    visible_status = complaint.get_status_display()
+    if not is_public and complaint.status in {'completed', 'closed'}:
+        visible_status = labels.get('final_review', 'قيد التحقق النهائي')
+        public_events = public_events.exclude(status__in={'completed', 'closed'})
     return {
         'reference': complaint.reference,
-        'status': complaint.get_status_display(),
+        'status': visible_status,
         'submitted_at': complaint.submitted_at.isoformat(),
         'timeline': [
             {'status': labels.get(item.status, item.status), 'public_message': item.public_message, 'created_at': item.created_at}
-            for item in complaint.status_history.order_by('created_at', 'pk')
+            for item in public_events
         ],
     }
 

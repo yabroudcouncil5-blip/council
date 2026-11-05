@@ -62,6 +62,19 @@ class HistoryInline(TabularInline):
     def has_add_permission(self, request, obj=None):
         return False
 
+
+class AttachmentInline(SelectionOnlyRelatedFieldsMixin, TabularInline):
+    model = ComplaintAttachment
+    extra = 0
+    can_delete = False
+    fields = ('file', 'original_name', 'source', 'visibility', 'uploaded_by', 'uploaded_at')
+    readonly_fields = ('original_name', 'uploaded_by', 'uploaded_at')
+    verbose_name = 'مرفق ودليل'
+    verbose_name_plural = 'المرفقات والأدلة'
+
+    def has_add_permission(self, request, obj=None):
+        return request.user.is_superuser and super().has_add_permission(request, obj)
+
 class AssignmentInlineForm(forms.ModelForm):
     status = forms.ChoiceField(label='الحالة', choices=ASSIGNMENT_STATES, widget=UnfoldAdminSelectWidget)
     priority = forms.ChoiceField(label='الأولوية', choices=ASSIGNMENT_PRIORITIES, widget=UnfoldAdminSelectWidget)
@@ -114,9 +127,60 @@ class ReviewInline(SelectionOnlyRelatedFieldsMixin, TabularInline):
         class CurrentReviewerFormSet(BaseFormSet):
             def save_new(self, form, commit=True):
                 form.instance.reviewer = request.user
-                return super().save_new(form, commit=commit)
+                instance = super().save_new(form, commit=commit)
+                if commit and instance:
+                    status_map = {'approved': 'completed', 'closed': 'completed', 'returned': 'assigned', 'additional_assignment': 'transferred'}
+                    next_status = status_map.get(instance.decision)
+                    if next_status:
+                        complaint = instance.complaint
+                        complaint.status = next_status
+                        complaint.save(update_fields=('status', 'updated_at'))
+                        ComplaintStatusHistory.objects.create(
+                            complaint=complaint,
+                            status=next_status,
+                            actor=request.user,
+                            public_message={
+                                'completed': 'تم اعتماد المعالجة وإغلاق الشكوى',
+                                'assigned': 'أعيدت الشكوى للقسم لاستكمال المعالجة',
+                                'transferred': 'أحيلت الشكوى إلى قسم آخر لاستكمال المعالجة',
+                            }[next_status],
+                        )
+                return instance
 
         return CurrentReviewerFormSet
+
+
+class PublicationInline(SelectionOnlyRelatedFieldsMixin, TabularInline):
+    model = ComplaintPublication
+    extra = 0
+    max_num = 1
+    can_delete = False
+    fields = ('summary', 'visibility', 'approved', 'approved_by', 'published_at')
+    readonly_fields = ('approved_by', 'published_at')
+    verbose_name = 'تأكيد النشر للمواطن'
+    verbose_name_plural = 'تأكيد النشر للمواطن'
+
+    def has_add_permission(self, request, obj=None):
+        return bool(request.user.is_superuser and obj and obj.status in {'completed', 'closed'} and super().has_add_permission(request, obj))
+
+    def has_change_permission(self, request, obj=None):
+        return request.user.is_superuser and super().has_change_permission(request, obj)
+
+    def save_formset(self, request, form, formset, change):
+        instances = formset.save(commit=False)
+        from django.utils import timezone
+        for instance in instances:
+            instance.approved = True
+            instance.approved_by = request.user
+            instance.published_at = timezone.now()
+            instance.save()
+            ComplaintStatusHistory.objects.create(
+                complaint=instance.complaint,
+                status=instance.complaint.status,
+                actor=request.user,
+                public_message='تم نشر نتيجة المعالجة للمواطن',
+            )
+        formset.save_m2m()
 
 
 @admin.register(Complaint)
@@ -126,13 +190,13 @@ class ComplaintAdmin(CouncilAdmin):
     search_fields = ('reference', 'title', 'description', 'name', 'phone')
     ordering = ('-submitted_at',)
     list_select_related = ('category',)
-    readonly_fields = ('reference', 'submitted_at', 'updated_at')
+    readonly_fields = ('reference', 'status', 'submitted_at', 'updated_at')
     fieldsets = (
         ('بيانات الشكوى', {'fields': ('reference', 'title', 'description', ('category', 'status'), 'location')}),
         ('بيانات التواصل مع المواطن', {'fields': ('name', ('phone', 'email')), 'description': 'بيانات داخلية؛ لا تُنشر على الموقع العام.'}),
         ('التواريخ', {'fields': ('submitted_at', 'updated_at'), 'classes': ('collapse',)}),
     )
-    inlines = (AssignmentInline, ReviewInline, HistoryInline)
+    inlines = (AssignmentInline, ReviewInline, PublicationInline, AttachmentInline, HistoryInline)
 
     def has_add_permission(self, request):
         # Public submission creates and returns the complaint reference.

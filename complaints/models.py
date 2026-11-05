@@ -9,7 +9,7 @@ class Complaint(models.Model):
     def __str__(self):
         return self.reference + " · " + self.title
 
-    STATUS = [('submitted','تم الاستلام'),('under_review','قيد المراجعة'),('assigned','تمت الإحالة'),('in_progress','قيد المعالجة'),('final_review','قيد التحقق النهائي'),('completed','تمت المعالجة'),('closed','أغلقت دون معالجة')]
+    STATUS = [('submitted','تم الاستلام'),('under_review','قيد المراجعة'),('assigned','تمت الإحالة'),('in_progress','قيد المعالجة'),('final_review','تم اتخاذ الإجراء، بانتظار الاعتماد'),('transferred','أحيلت إلى قسم آخر'),('completed','أغلقت بعد الاعتماد'),('closed','أغلقت دون معالجة')]
     reference = models.CharField(max_length=24, unique=True, editable=False, verbose_name='الرقم المرجعي')
     # Legacy data retained; tracking now uses only the reference.
     tracking_hash = models.CharField(max_length=128, verbose_name='بصمة رمز التتبع')
@@ -71,6 +71,8 @@ class ComplaintAttachment(models.Model):
         return self.original_name
 
     complaint = models.ForeignKey(Complaint, on_delete=models.CASCADE, related_name='attachments', verbose_name='الشكوى')
+    uploaded_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, verbose_name='رفع بواسطة')
+    source = models.CharField(max_length=20, choices=[('resident', 'المواطن'), ('staff', 'فريق البلدية')], default='resident', verbose_name='مصدر المرفق')
     file = models.FileField(upload_to='complaints/%Y/%m/', verbose_name='الملف')
     original_name = models.CharField(max_length=255, verbose_name='اسم الملف الأصلي')
     visibility = models.CharField(max_length=20, default='internal', verbose_name='نطاق الظهور')

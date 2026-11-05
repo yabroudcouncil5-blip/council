@@ -30,6 +30,20 @@ class ComplaintFlowTests(TestCase):
         upload = SimpleUploadedFile('x.exe', b'bad', content_type='application/x-msdownload')
         self.assertEqual(client.post('/api/complaints/', {'title':'x','description':'y','photo':upload}).status_code, 400)
 
+    def test_staff_action_evidence_is_saved_for_supervisor_review(self):
+        from .models import ComplaintAssignment, AssignmentAction, ComplaintAttachment
+        user = User.objects.create_user('evidence-staff', password='pass', is_staff=True)
+        department = Department.objects.create(name='الإنارة')
+        complaint = Complaint.objects.create(reference='YBC-2026-900002', title='عطل', description='تفاصيل', tracking_hash='unused')
+        assignment = ComplaintAssignment.objects.create(complaint=complaint, department=department, officer=user)
+        client = Client(); client.force_login(user)
+        evidence = SimpleUploadedFile('proof.jpg', b'image-data', content_type='image/jpeg')
+        response = client.post('/staff/action/', {'assignment_id': assignment.id, 'internal_action': 'تم الإصلاح', 'evidence': evidence})
+        self.assertEqual(response.status_code, 201)
+        attachment = ComplaintAttachment.objects.get(complaint=complaint)
+        self.assertEqual((attachment.source, attachment.visibility, attachment.uploaded_by), ('staff', 'internal', user))
+        self.assertEqual(AssignmentAction.objects.filter(assignment=assignment).count(), 1)
+
     def test_multi_department_assignment_and_closure_guard(self):
         user=User.objects.create_user('reviewer', password='pass'); user.is_staff=True; user.save(); d1=Department.objects.create(name='طرق'); d2=Department.objects.create(name='إنارة'); client=Client(); client.force_login(user)
         response=client.post('/api/complaints/', {'title':'مشكلة مشتركة','description':'تفاصيل'}); complaint=Complaint.objects.get(reference=response.json()['reference'])
@@ -37,8 +51,23 @@ class ComplaintFlowTests(TestCase):
         self.assertNotEqual(a1,a2); self.assertEqual(client.post('/staff/final-review/', {'complaint_id':complaint.id,'assignment_id':a1,'decision':'approved'}).status_code, 200); self.assertEqual(client.post('/staff/final-review/', {'complaint_id':complaint.id,'decision':'closed'}).status_code, 409)
 
     def test_public_resolutions_only_include_approved_completed_items(self):
-        user=User.objects.create_user('reviewer2', password='pass'); user.is_staff=True; user.save(); client=Client(); client.force_login(user); d=Department.objects.create(name='خدمات')
-        response=client.post('/api/complaints/', {'title':'خدمة','description':'تفاصيل'}); complaint=Complaint.objects.get(reference=response.json()['reference']); a=client.post('/staff/assign/', {'complaint_id':complaint.id,'department_id':d.id}).json()['assignment_id']; client.post('/staff/final-review/', {'complaint_id':complaint.id,'assignment_id':a,'decision':'approved'}); client.post('/staff/final-review/', {'complaint_id':complaint.id,'decision':'closed'}); complaint.refresh_from_db(); client.post('/staff/publish/', {'complaint_id':complaint.id,'summary':'تم الحل','visibility':'public'}); self.assertEqual(client.get('/api/public/resolutions/').status_code, 200)
+        user=User.objects.create_superuser('reviewer2', password='pass', email='reviewer2@example.com'); client=Client(); client.force_login(user); d=Department.objects.create(name='خدمات')
+        response=client.post('/api/complaints/', {'title':'خدمة','description':'تفاصيل'}); complaint=Complaint.objects.get(reference=response.json()['reference']); a=client.post('/staff/assign/', {'complaint_id':complaint.id,'department_id':d.id}).json()['assignment_id']; client.post('/staff/final-review/', {'complaint_id':complaint.id,'assignment_id':a,'decision':'approved'}); client.post('/staff/final-review/', {'complaint_id':complaint.id,'decision':'closed'}); complaint.refresh_from_db(); self.assertEqual(client.post('/staff/publish/', {'complaint_id':complaint.id,'summary':'تم الحل','visibility':'public'}).status_code, 201); self.assertEqual(client.get('/api/public/resolutions/').status_code, 200)
+
+    def test_closed_status_is_hidden_until_superadmin_publishes(self):
+        from .models import ComplaintStatusHistory, ComplaintPublication
+        complaint = Complaint.objects.create(reference='YBC-2026-900001', title='إنارة', description='تفاصيل', tracking_hash='unused', status='completed')
+        ComplaintStatusHistory.objects.create(complaint=complaint, status='completed', public_message='تمت المعالجة')
+        self.assertEqual(self.client.post('/api/complaints/track/', {'reference': complaint.reference}).json()['status'], 'تم اتخاذ الإجراء، بانتظار الاعتماد')
+        staff = User.objects.create_user('staff-publisher', password='pass', is_staff=True)
+        client = Client(); client.force_login(staff)
+        self.assertEqual(client.post('/staff/publish/', {'complaint_id': complaint.id, 'summary': 'تم الحل', 'visibility': 'tracked'}).status_code, 403)
+        admin = User.objects.create_superuser('publisher', password='pass', email='publisher@example.com')
+        client.force_login(admin)
+        self.assertEqual(client.post('/staff/publish/', {'complaint_id': complaint.id, 'summary': 'تم الحل', 'visibility': 'tracked'}).status_code, 201)
+        result = client.post('/api/complaints/track/', {'reference': complaint.reference}).json()
+        self.assertEqual(result['status'], 'أغلقت بعد الاعتماد')
+        self.assertEqual(ComplaintPublication.objects.get(complaint=complaint).approved_by, admin)
 
     def test_staff_report_is_protected(self):
         self.assertEqual(Client().get('/staff/reports/').status_code, 302)

@@ -105,6 +105,12 @@ def action_submission(request):
     assignment=ComplaintAssignment.objects.select_related('complaint').get(pk=request.POST['assignment_id'])
     if assignment.officer_id != request.user.id and not request.user.is_superuser and not request.user.groups.filter(name='Department Manager').exists(): return JsonResponse({'error':'غير مصرح'}, status=403)
     action=AssignmentAction.objects.create(assignment=assignment, actor=request.user, internal_action=request.POST.get('internal_action',''), public_message=request.POST.get('public_message',''))
+    evidence = request.FILES.get('evidence')
+    if evidence:
+        if evidence.size > 5 * 1024 * 1024 or evidence.content_type not in {'image/jpeg','image/png','image/webp','application/pdf'}:
+            return JsonResponse({'error':'الدليل يجب أن يكون صورة أو PDF وأقل من 5 ميغابايت'}, status=400)
+        from .models import ComplaintAttachment
+        ComplaintAttachment.objects.create(complaint=assignment.complaint, uploaded_by=request.user, source='staff', visibility='internal', file=evidence, original_name=evidence.name)
     assignment.status='submitted'; assignment.save(update_fields=['status'])
     assignment.complaint.status='final_review'; assignment.complaint.save(update_fields=['status','updated_at'])
     ComplaintStatusHistory.objects.create(complaint=assignment.complaint, status='final_review', public_message=action.public_message or 'تم إرسال المعالجة للمراجعة')
@@ -126,24 +132,35 @@ def final_review(request):
         complaint.status='assigned'; complaint.save(update_fields=['status','updated_at'])
         ComplaintStatusHistory.objects.create(complaint=complaint, status='assigned', public_message=request.POST.get('reason','أعيدت للقسم لاستكمال المعالجة'))
         if assignment and assignment.officer_id: InternalNotification.objects.create(user=assignment.officer, complaint=complaint, message=f'أعيدت الشكوى {complaint.reference} لاستكمال الإجراء')
+    if decision == 'approved':
+        if not complaint.assignments.exclude(status__in=['approved','cancelled']).exists():
+            complaint.status='completed'; complaint.save(update_fields=['status','updated_at'])
+            ComplaintStatusHistory.objects.create(complaint=complaint, status='completed', actor=request.user, public_message='تم اعتماد المعالجة وإغلاق الشكوى')
     if decision == 'closed':
         if complaint.assignments.exclude(status__in=['approved','cancelled']).exists(): return JsonResponse({'error':'لا يمكن إغلاق الشكوى قبل اعتماد جميع المهام'}, status=409)
         complaint.status='completed'; complaint.save(update_fields=['status','updated_at'])
-        ComplaintStatusHistory.objects.create(complaint=complaint, status='completed', public_message='تم اعتماد المعالجة وإغلاق الشكوى')
+        ComplaintStatusHistory.objects.create(complaint=complaint, status='completed', actor=request.user, public_message='تم اعتماد المعالجة وإغلاق الشكوى')
+    if decision == 'additional_assignment':
+        complaint.status='transferred'; complaint.save(update_fields=['status','updated_at'])
+        ComplaintStatusHistory.objects.create(complaint=complaint, status='transferred', actor=request.user, public_message='أحيلت الشكوى إلى قسم آخر لاستكمال المعالجة')
     return JsonResponse({'status':complaint.status})
 
 @login_required
 @require_http_methods(['POST'])
 def publish_resolution(request):
-    if not request.user.is_staff: return JsonResponse({'error':'غير مصرح'}, status=403)
+    if not request.user.is_superuser: return JsonResponse({'error':'يجب أن يعتمد المشرف العام النشر'}, status=403)
     from .models import ComplaintPublication, ComplaintStatusHistory
-    complaint=Complaint.objects.get(pk=request.POST['complaint_id']); publication, _=ComplaintPublication.objects.update_or_create(complaint=complaint, defaults={'summary':request.POST.get('summary',''),'visibility':request.POST.get('visibility','private'),'approved':True,'approved_by':request.user})
+    complaint=Complaint.objects.get(pk=request.POST['complaint_id'])
+    if complaint.status not in {'completed', 'closed'}:
+        return JsonResponse({'error':'لا يمكن نشر النتيجة قبل اعتماد المعالجة أو إغلاق الشكوى'}, status=409)
+    from django.utils import timezone
+    publication, _=ComplaintPublication.objects.update_or_create(complaint=complaint, defaults={'summary':request.POST.get('summary',''),'visibility':request.POST.get('visibility','private'),'approved':True,'approved_by':request.user,'published_at':timezone.now()})
     ComplaintStatusHistory.objects.create(complaint=complaint, status=complaint.status, public_message='تم نشر نتيجة المعالجة للمواطن')
     return JsonResponse({'publication_id':publication.id,'approved':publication.approved}, status=201)
 
 def public_resolutions(request):
     from .models import ComplaintPublication
-    rows=ComplaintPublication.objects.filter(approved=True, visibility='public', complaint__status='completed').select_related('complaint')
+    rows=ComplaintPublication.objects.filter(approved=True, visibility='public', complaint__status__in=['completed', 'closed']).select_related('complaint')
     return JsonResponse({'results':[{'reference':p.complaint.reference,'title':p.complaint.title,'summary':p.summary,'published_at':p.published_at.isoformat() if p.published_at else None} for p in rows]})
 
 @login_required
