@@ -1,0 +1,23 @@
+/* Shared with all internal pages; served locally so Arabic does not fall back
+   to a different font when a visitor cannot reach Google Fonts. */
+@font-face {
+    font-family: 'Tajawal';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url('fonts/tajawal-regular.ttf') format('truetype');
+}
+@font-face {
+    font-family: 'Tajawal';
+    font-style: normal;
+    font-weight: 500;
+    font-display: swap;
+    src: url('fonts/tajawal-medium.ttf') format('truetype');
+}
+@font-face {
+    font-family: 'Tajawal';
+    font-style: normal;
+    font-weight: 700;
+    font-display: swap;
+    src: url('fonts/tajawal-bold.ttf') format('truetype');
+}

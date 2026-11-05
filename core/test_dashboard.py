@@ -63,10 +63,37 @@ class CouncilDashboardTests(TestCase):
         self.assertTrue(form.is_valid(), form.errors)
         assignment = form.save()
         self.assertEqual(assignment.due_at.hour, 10)
-        for name in ['priority', 'status', 'department', 'officer']:
+        for name in ['priority', 'status', 'department']:
             widget = form.fields[name].widget
-        self.assertIsInstance(getattr(widget, 'widget', widget), forms.HiddenInput)
+            self.assertIsInstance(getattr(widget, 'widget', widget), forms.RadioSelect)
+        officer_widget = form.fields['officer'].widget
+        self.assertIsInstance(getattr(officer_widget, 'widget', officer_widget), forms.HiddenInput)
         self.client.force_login(self.admin)
         response = self.client.get('/admin/core/department/')
         self.assertContains(response, 'core/dashboard.')
-        self.assertContains(response, 'Tajawal')
+        self.assertContains(response, 'core/fonts.')
+
+    def test_every_dashboard_page_uses_shared_theme_and_accessible_account_controls(self):
+        self.client.force_login(self.admin)
+        for path in (
+            '/admin/', '/admin/core/department/', '/admin/auth/user/',
+            '/admin/auth/user/add/', '/admin/website/page/add/',
+            '/admin/website/newsarticle/add/',
+            f'/admin/complaints/complaint/{self.complaint.pk}/change/',
+            '/staff/reports/',
+        ):
+            with self.subTest(path=path):
+                response = self.client.get(path)
+                self.assertEqual(response.status_code, 200)
+                self.assertContains(response, 'core/fonts.')
+                self.assertContains(response, 'core/dashboard.')
+                self.assertContains(response, 'id="dashboard-account-menu"')
+                self.assertContains(response, 'class="dashboard-logout"')
+                self.assertContains(response, 'id="dashboard-theme-button"')
+                self.assertNotContains(response, 'light_mode')
+                self.assertNotContains(response, 'Type to search')
+                self.assertNotContains(response, '<title> </title>')
+                if path == '/admin/website/newsarticle/add/':
+                    self.assertContains(response, 'placeholder="التاريخ"')
+                    self.assertContains(response, 'placeholder="الوقت"')
+                    self.assertContains(response, 'aria-label="اختر ملفاً للرفع"')

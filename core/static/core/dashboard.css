@@ -1,42 +1,222 @@
-@import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap');
-.material-symbols-outlined{font-family:'Material Symbols Outlined'!important;font-weight:normal!important;font-style:normal!important;font-size:24px!important;line-height:1!important;letter-spacing:normal;text-transform:none;display:inline-block;white-space:nowrap;word-wrap:normal;direction:ltr;-webkit-font-feature-settings:'liga';-webkit-font-smoothing:antialiased;font-feature-settings:'liga'}
-html[dir="rtl"] body,html[dir="rtl"] button,html[dir="rtl"] input,html[dir="rtl"] textarea,html[dir="rtl"] select,html[dir="rtl"] body *:not(.material-symbols-outlined){font-family:'Tajawal',Tahoma,Arial,sans-serif!important;line-height:1.8}
-/* Keep the account menu above the header and give it room to open. */
-html[dir="rtl"] header,html[dir="rtl"] [data-headlessui-state]{position:relative;z-index:60}
-html[dir="rtl"] header nav{z-index:100!important}
-html[dir="rtl"] #nav-filter{font-family:'Tajawal',Tahoma,Arial,sans-serif!important}
-html[dir="rtl"] header [x-data*="openUserLinks"]{z-index:200;position:relative;margin-inline-start:12px}
-html[dir="rtl"] header [x-data*="openUserLinks"]{display:block;flex:0 0 auto;min-width:36px}
-html[dir="rtl"] header,html[dir="rtl"] header > *{overflow:visible!important}
-html[dir="rtl"] header [x-data*="openUserLinks"] nav{min-width:190px;right:0!important;top:36px!important;background:#fff!important;box-shadow:0 12px 30px #17324d30!important}
-html[dir="rtl"] aside a,html[dir="rtl"] aside button{direction:ltr;display:flex;align-items:center;justify-content:flex-start;gap:12px!important}
-html[dir="rtl"] aside a .material-symbols-outlined,html[dir="rtl"] aside button .material-symbols-outlined{order:0;margin:0!important;flex:0 0 22px;text-align:left;vertical-align:middle}
-html[dir="rtl"] aside a > span:not(.material-symbols-outlined),html[dir="rtl"] aside button > span:not(.material-symbols-outlined){order:1;direction:rtl;text-align:right;flex:1}
-/* Consistent spacing for all admin form controls and their leading icons. */
-html[dir="rtl"] #content input:not([type="checkbox"]):not([type="radio"]),html[dir="rtl"] #content textarea,html[dir="rtl"] #content select{min-height:44px;padding:10px 14px!important;border-radius:10px!important;line-height:1.5!important}
-html[dir="rtl"] #content input[type="date"],html[dir="rtl"] #content input[type="datetime-local"],html[dir="rtl"] #content input[type="time"]{direction:ltr;text-align:right;padding-right:42px!important}
-html[dir="rtl"] #content [class*="icon"],html[dir="rtl"] #content svg{flex-shrink:0}
-html[dir="rtl"] #content .relative > svg,html[dir="rtl"] #content .relative > .material-symbols-outlined{margin-inline-start:8px}
-html[dir="rtl"] .ql-toolbar.ql-snow{direction:ltr;display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:12px 16px!important;min-height:68px}
-html[dir="rtl"] .ql-toolbar.ql-snow .ql-formats{display:inline-flex;align-items:center;gap:5px;margin:0 4px!important}
-html[dir="rtl"] .ql-container.ql-snow{direction:rtl}
-html[dir="rtl"] [role="switch"]{flex-shrink:0;margin-inline-start:12px}
-html[dir="rtl"] .council-dashboard,html[dir="rtl"] .council-dashboard *:not(.material-symbols-outlined){font-family:'Tajawal',Tahoma,Arial,sans-serif!important}
-html[dir="rtl"] .council-dashboard{font-size:15px;letter-spacing:0;background:#f4f8f7;padding:24px;border-radius:18px}
-html[dir="rtl"] input,html[dir="rtl"] textarea,html[dir="rtl"] select,html[dir="rtl"] button{font-family:inherit}
-/* Keep every header and value on the same edge, including numeric/boolean columns. */
-html[dir="rtl"] #content table{direction:rtl}
-html[dir="rtl"] #content table th,html[dir="rtl"] #content table td{text-align:right!important;vertical-align:middle}
-html[dir="rtl"] #content table th>div{justify-content:flex-start}
-html[dir="rtl"] #result_list .action-checkbox,html[dir="rtl"] #result_list .action-checkbox-column{text-align:center!important;width:44px}
-html[dir="rtl"] #result_list .action-checkbox-column>div{justify-content:center}
-html[dir="rtl"] #result_list td.field-reference,html[dir="rtl"] #result_list th.field-reference{direction:ltr;text-align:right!important}
-html[dir="rtl"] #result_list th .sortoptions{margin-left:0;margin-right:8px}
-html[dir="rtl"] #content input[type="checkbox"],html[dir="rtl"] #content input[type="radio"]{accent-color:#0f766e;flex-shrink:0}
-/* Visible choices instead of opening a menu for every decision. */
-.officer-choices,html[dir="rtl"] .field-department div[id^="id_"],html[dir="rtl"] .field-officer div[id^="id_"],html[dir="rtl"] .field-category div[id^="id_"]{display:flex;flex-direction:row;flex-wrap:wrap;gap:10px}
-.officer-choices>div>label,html[dir="rtl"] .field-department div[id^="id_"]>div label,html[dir="rtl"] .field-officer div[id^="id_"]>div label,html[dir="rtl"] .field-category div[id^="id_"]>div label{display:flex;align-items:center;gap:9px;min-height:46px;padding:10px 16px;border:1px solid #cbd5e1;border-radius:10px;cursor:pointer}
-.officer-choices label:has(input:checked),html[dir="rtl"] .field-department label:has(input:checked),html[dir="rtl"] .field-officer label:has(input:checked),html[dir="rtl"] .field-category label:has(input:checked){border-color:#0f766e;background:#0f766e12;box-shadow:inset 0 0 0 1px #0f766e}
-.officer-choices label:focus-within{outline:2px solid #14b8a6;outline-offset:2px}
-html[dir="rtl"] input[type="datetime-local"]{padding:12px;border:1px solid #cbd5e1;border-radius:8px;direction:ltr;max-width:100%}
-@media(max-width:1023px){html[dir="rtl"] #result_list td:before,html[dir="rtl"] #result_list th:before{margin-right:0;margin-left:auto;padding-inline-end:12px}}
+/* Shared dashboard theme. Unfold supplies the layout and widget sizing;
+   these rules use its actual DOM and color tokens, including dark mode. */
+:root {
+    --font-sans: 'Tajawal', Tahoma, Arial, sans-serif;
+    --dashboard-surface: #fff;
+    --dashboard-subtle: var(--color-base-50, #f8fafc);
+    --dashboard-border: var(--color-base-200, #e2e8f0);
+    --dashboard-ink: var(--color-base-900, #111827);
+    --dashboard-muted: var(--color-base-500, #64748b);
+    --dashboard-accent: var(--color-primary-700, #0f766e);
+    --dashboard-accent-soft: var(--color-primary-50, #f0fdfa);
+}
+.dark {
+    --dashboard-surface: var(--color-base-900, #111827);
+    --dashboard-subtle: var(--color-base-800, #1f2937);
+    --dashboard-border: var(--color-base-700, #374151);
+    --dashboard-ink: var(--color-base-100, #f3f4f6);
+    --dashboard-muted: var(--color-base-400, #94a3b8);
+    --dashboard-accent: var(--color-primary-400, #2dd4bf);
+    --dashboard-accent-soft: var(--color-primary-950, #042f2e);
+}
+body {
+    font-family: var(--font-sans);
+    line-height: 1.6;
+}
+button, input, select, textarea { font-family: inherit; }
+[x-cloak] { display: none !important; }
+
+/* Icon descendants must inherit the icon font, including Alpine's theme span.
+   Never apply text-font overrides to every descendant of body. */
+.material-symbols-outlined,
+.material-symbols-outlined * {
+    font-family: 'Material Symbols Outlined' !important;
+    font-weight: 400;
+    font-style: normal;
+    line-height: 1;
+    letter-spacing: normal;
+    text-transform: none;
+    white-space: nowrap;
+    word-wrap: normal;
+    direction: ltr;
+    font-feature-settings: 'liga';
+    -webkit-font-smoothing: antialiased;
+}
+.material-symbols-outlined { flex-shrink: 0; vertical-align: middle; }
+
+/* The Unfold header is a div, not an HTML header element. */
+#header-inner { gap: 16px; }
+#header-inner > div { min-width: 0; gap: 12px; }
+.dashboard-header { position: relative; z-index: 40; }
+.dashboard-user-tools { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.dashboard-user-actions { display: flex; align-items: center; gap: 8px; }
+.dashboard-menu-anchor { position: relative; flex-shrink: 0; }
+.dashboard-control {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 38px;
+    min-width: 38px;
+    padding: 7px 10px;
+    border: 1px solid var(--dashboard-border);
+    border-radius: 6px;
+    color: inherit;
+    background: var(--dashboard-surface);
+    cursor: pointer;
+    line-height: 1;
+}
+.dashboard-control:hover, .dashboard-control[aria-expanded="true"] { background: var(--dashboard-subtle); }
+.dashboard-control:focus-visible, .dashboard-menu a:focus-visible,
+.dashboard-menu button:focus-visible {
+    outline: 2px solid var(--dashboard-accent);
+    outline-offset: 3px;
+}
+.dashboard-control svg { width: 20px; height: 20px; flex-shrink: 0; }
+.dashboard-menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    inset-inline-end: 0;
+    width: min(240px, calc(100vw - 32px));
+    max-height: calc(100dvh - 90px);
+    overflow-y: auto;
+    padding: 6px;
+    border: 1px solid var(--dashboard-border);
+    border-radius: 8px;
+    background: var(--dashboard-surface);
+    color: var(--dashboard-ink);
+    box-shadow: 0 12px 30px #0f172a24;
+    z-index: 60;
+    text-align: start;
+}
+.dashboard-menu-heading { padding: 10px; border-bottom: 1px solid var(--dashboard-border); margin-bottom: 4px; overflow-wrap: anywhere; }
+.dashboard-menu-heading small { display: block; color: var(--dashboard-muted); font-size: 12px; }
+.dashboard-menu a, .dashboard-menu button {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 42px;
+    padding: 10px;
+    width: 100%;
+    border-radius: 5px;
+    text-align: start;
+    color: inherit;
+    cursor: pointer;
+    line-height: 1.4;
+}
+.dashboard-menu a:hover, .dashboard-menu button:hover { background: var(--dashboard-subtle); }
+.dashboard-menu form { border-top: 1px solid var(--dashboard-border); margin-top: 4px; padding-top: 4px; }
+.dashboard-menu .dashboard-logout { color: #dc2626; }
+.dark .dashboard-menu .dashboard-logout { color: #fca5a5; }
+.dashboard-theme-menu { width: 180px; }
+.dashboard-theme-menu button[aria-pressed="true"] { color: var(--dashboard-accent); background: var(--dashboard-accent-soft); }
+
+/* Actual navigation: labels on the right, icons on the left. */
+html[dir="rtl"] #nav-sidebar { border-right: 0; border-left: 1px solid var(--dashboard-border); }
+#nav-sidebar-inner .dashboard-nav-link {
+    display: flex;
+    flex-direction: row;
+    gap: 14px;
+    height: auto;
+    min-height: 44px;
+    padding-block: 10px;
+    text-align: start;
+    transition: color .15s, background-color .15s;
+}
+#nav-sidebar-inner .dashboard-nav-label {
+    flex: 1;
+    min-width: 0;
+    font-size: 14px;
+    line-height: 1.6;
+}
+#nav-sidebar-inner .dashboard-nav-icon {
+    display: block;
+    width: 20px;
+    height: 20px;
+    flex: 0 0 20px;
+    color: var(--dashboard-muted);
+}
+#nav-sidebar-inner .dashboard-nav-link:hover { background: var(--dashboard-subtle); }
+#nav-sidebar-inner .dashboard-nav-link.is-active { background: var(--dashboard-accent-soft); color: var(--dashboard-accent); font-weight: 700; }
+#nav-sidebar-inner .dashboard-nav-link:hover .dashboard-nav-icon,
+#nav-sidebar-inner .dashboard-nav-link.is-active .dashboard-nav-icon { color: var(--dashboard-accent); }
+#nav-sidebar-inner .dashboard-nav-link:focus-visible { outline: 2px solid var(--dashboard-accent); outline-offset: 2px; }
+#nav-sidebar-inner .dashboard-nav-badge { flex-shrink: 0; border-radius: 4px; padding: 1px 5px; color: #fff; background: #dc2626; font-size: 12px; }
+#nav-sidebar-inner ol { margin-block: 8px; }
+#nav-sidebar-inner input { text-align: start; }
+
+/* Preserve Unfold's per-widget padding (especially fields with icons). */
+#content .datetime { gap: 12px; }
+html[dir="rtl"] #content .datetime input { direction: ltr; text-align: left; }
+#content input[type="datetime-local"] { max-width: 100%; min-height: 38px; padding: 8px 12px; border: 1px solid var(--dashboard-border); border-radius: 6px; background: var(--dashboard-surface); direction: ltr; }
+#content .datetime > div, #content .datetime > div > div { min-width: 0; }
+html[dir="rtl"] #content select:not([multiple]) { padding-right: 12px; padding-left: 38px; }
+html[dir="rtl"] #content select:not([multiple]) + .material-symbols-outlined { right: auto; left: 10px; margin: 0; }
+html[dir="rtl"] #content .field-row:has(input[type="checkbox"]) label { margin-inline-start: 10px; }
+#content .related-widget-wrapper { min-width: 0; }
+html[dir="rtl"] #content table th,
+html[dir="rtl"] #content table td { text-align: start; vertical-align: middle; }
+#result_list .action-checkbox,
+#result_list .action-checkbox-column { width: 44px; text-align: center; }
+#content input[type="checkbox"], #content input[type="radio"] { flex-shrink: 0; accent-color: #0f766e; }
+.officer-choices { display: flex; flex-wrap: wrap; gap: 10px; }
+.officer-choices > div > label, .radiolist > div > label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    border: 1px solid var(--dashboard-border);
+    border-radius: 6px;
+    cursor: pointer;
+}
+.officer-choices label:has(input:checked), .radiolist label:has(input:checked) { border-color: var(--dashboard-accent); background: var(--dashboard-accent-soft); }
+.officer-choices label:focus-within { outline: 2px solid var(--dashboard-accent); outline-offset: 2px; }
+
+/* Overview uses the same colors, text sizes, borders and table rhythm as lists. */
+.dashboard-overview { padding-block: 4px 24px; }
+.dashboard-page-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
+.dashboard-page-heading h2 { font-size: 20px; font-weight: 700; color: var(--dashboard-ink); }
+.dashboard-page-heading p, .dashboard-updated { color: var(--dashboard-muted); font-size: 14px; }
+.dashboard-updated { white-space: nowrap; }
+.dashboard-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 24px; }
+.dashboard-action { display: inline-flex; align-items: center; justify-content: center; padding: 8px 14px; min-height: 38px; border: 1px solid var(--dashboard-border); border-radius: 6px; background: var(--dashboard-surface); color: var(--dashboard-ink); font-weight: 500; }
+.dashboard-action.primary { background: var(--color-primary-600, #0d9488); border-color: transparent; color: #fff; }
+.dashboard-action:hover { filter: brightness(.97); }
+.dashboard-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin-bottom: 24px; }
+.dashboard-metric, .dashboard-panel { border: 1px solid var(--dashboard-border); border-radius: 6px; background: var(--dashboard-surface); min-width: 0; }
+.dashboard-metric { display: block; padding: 18px 20px; transition: border-color .15s; }
+.dashboard-metric:hover { border-color: var(--dashboard-accent); }
+.dashboard-metric-label { color: var(--dashboard-muted); font-size: 14px; }
+.dashboard-metric-value { display: block; color: var(--dashboard-ink); font-size: 30px; font-weight: 700; line-height: 1.3; margin-top: 8px; font-variant-numeric: tabular-nums; }
+.dashboard-columns { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 20px; align-items: start; }
+.dashboard-panel-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 20px; border-bottom: 1px solid var(--dashboard-border); }
+.dashboard-panel-heading h2 { font-size: 16px; font-weight: 700; color: var(--dashboard-ink); }
+.dashboard-panel-heading a, .dashboard-table a { color: var(--dashboard-accent); font-weight: 500; }
+.dashboard-table-wrap { max-width: 100%; overflow-x: auto; }
+.dashboard-table { width: 100%; min-width: 620px; border-collapse: collapse; font-size: 14px; }
+.dashboard-table th, .dashboard-table td { padding: 14px 18px; border-bottom: 1px solid var(--dashboard-border); text-align: start; }
+.dashboard-table th { background: var(--dashboard-subtle); color: var(--dashboard-muted); font-weight: 500; }
+.dashboard-table tbody tr:last-child td { border-bottom: 0; }
+.dashboard-table tbody tr:hover { background: var(--dashboard-subtle); }
+.dashboard-reference, .dashboard-table time { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.dashboard-subtext { display: block; color: var(--dashboard-muted); font-size: 12px; margin-top: 2px; }
+.dashboard-status { display: inline-block; white-space: nowrap; border-radius: 4px; padding: 3px 8px; background: var(--dashboard-accent-soft); color: var(--dashboard-accent); font-size: 12px; font-weight: 500; }
+.dashboard-empty { padding: 24px 20px; color: var(--dashboard-muted); font-size: 14px; }
+.dashboard-notifications { list-style: none; margin: 0; padding: 0 20px; }
+.dashboard-notifications li { border-bottom: 1px solid var(--dashboard-border); padding-block: 14px; }
+.dashboard-notifications li:last-child { border: 0; }
+.dashboard-notifications time { display: block; font-size: 12px; color: var(--dashboard-muted); margin-top: 6px; }
+@media (max-width: 1100px) {
+    .dashboard-columns { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 640px) {
+    .dashboard-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .dashboard-metric { padding: 14px; }
+    .dashboard-page-heading { align-items: flex-start; flex-direction: column; gap: 8px; }
+    .dashboard-account-label { display: none; }
+    .dashboard-control { padding: 7px; }
+    .dashboard-table th, .dashboard-table td { padding: 12px; }
+    .dashboard-panel-heading { padding: 14px; }
+    #header-inner > div { gap: 4px; }
+    .dashboard-user-tools { gap: 4px; }
+}

@@ -1,12 +1,70 @@
-{% extends "admin/base.html" %}
+{% extends "admin/base_site.html" %}
+
 {% block content %}
-<style>
-.overview{font-family:'Tajawal',Tahoma,Arial,sans-serif;color:#17324d;background:#f4f8f7;padding:28px;border-radius:18px}.overview *{font-family:inherit}.overview-head{display:flex;justify-content:space-between;gap:24px;align-items:flex-start;margin-bottom:24px}.overview h1,.overview h2{margin:0;font-weight:800}.overview h1{font-size:30px}.overview-head p{margin:8px 0;color:#6b7f87}.overview-date{background:#fff;border:1px solid #dce9e6;border-radius:12px;padding:12px 16px;color:#6b7f87;text-align:center;font-size:13px}.overview-actions{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:24px}.overview-actions a{padding:11px 16px;border-radius:10px;border:1px solid #cfe1de;background:#fff;color:#17324d;text-decoration:none;font-weight:700}.overview-actions a.primary{background:#087f73;color:#fff;border-color:#087f73}.overview-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:24px}.overview-card,.overview-panel{background:#fff;border:1px solid #dce9e6;border-radius:14px}.overview-card{padding:20px;text-decoration:none;color:#17324d}.overview-card small{display:block;color:#73858c}.overview-card strong{display:block;font-size:34px;margin:7px 0;color:#087f73}.overview-panel{padding:22px;margin-bottom:20px}.overview-panel-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}.overview-panel-head a{color:#087f73;font-weight:700;text-decoration:none;font-size:13px}.overview-table{width:100%;border-collapse:collapse}.overview-table th,.overview-table td{text-align:right;padding:13px 10px;border-bottom:1px solid #edf2f1}.overview-table th{color:#71838c;background:#f5f9f8}.overview-table a{color:#087f73;font-weight:700;text-decoration:none}.overview-tag{display:inline-block;background:#e8f5f2;color:#087f73;border-radius:8px;padding:4px 9px;font-size:12px}.overview-columns{display:grid;grid-template-columns:1.5fr 1fr;gap:20px}.overview-empty{color:#71838c;line-height:1.9}.overview-list{margin:0;padding:0;list-style:none}.overview-list li{padding:12px 0;border-bottom:1px solid #edf2f1}.overview-list small{display:block;color:#71838c;margin-top:4px}@media(max-width:1000px){.overview-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.overview-columns{grid-template-columns:1fr}}@media(max-width:560px){.overview{padding:16px}.overview-head{display:block}.overview-date{margin-top:16px}.overview-grid{grid-template-columns:1fr}}
-</style>
-<main class="overview" dir="rtl">
-<header class="overview-head"><div><h1>لوحة الإدارة</h1><p>ملخص واضح لمتابعة شكاوى المواطنين وأعمال البلدية.</p></div><div class="overview-date">{{ dashboard_date|date:"l، d F Y" }}<br>آخر تحديث {{ dashboard_date|date:"H:i" }}</div></header>
-<nav class="overview-actions"><a class="primary" href="/admin/complaints/complaint/">متابعة الشكاوى</a><a href="/staff/reports/">التقارير والمتابعة</a>{% if perms.website.add_newsarticle %}<a href="{% url 'admin:website_newsarticle_add' %}">إضافة خبر أو إعلان</a>{% endif %}<a href="/">عرض الموقع العام</a></nav>
-{% if metrics %}<section class="overview-grid">{% for metric in metrics %}<a class="overview-card" href="{{ metric.link }}"><small>{{ metric.title }}</small><strong>{{ metric.value }}</strong><small>عرض التفاصيل ←</small></a>{% endfor %}</section>{% endif %}
-<div class="overview-columns"><section class="overview-panel"><div class="overview-panel-head"><h2>أحدث الشكاوى</h2><a href="/admin/complaints/complaint/">عرض الكل ←</a></div>{% if recent_complaints %}<table class="overview-table"><thead><tr><th>الرقم المرجعي</th><th>الموضوع</th><th>الحالة</th><th>التاريخ</th></tr></thead><tbody>{% for item in recent_complaints %}<tr><td><a href="{% url 'admin:complaints_complaint_change' item.pk %}">{{ item.reference }}</a></td><td>{{ item.title }}</td><td><span class="overview-tag">{{ item.get_status_display }}</span></td><td>{{ item.submitted_at|date:'Y/m/d' }}</td></tr>{% endfor %}</tbody></table>{% else %}<p class="overview-empty">لا توجد شكاوى مسجلة حالياً.</p>{% endif %}</section><section class="overview-panel"><div class="overview-panel-head"><h2>تنبيهات المتابعة</h2></div>{% if notifications %}<ul class="overview-list">{% for item in notifications %}<li>{{ item.message }}<small>{{ item.created_at|date:'Y/m/d H:i' }}</small></li>{% endfor %}</ul>{% else %}<p class="overview-empty">لا توجد تنبيهات جديدة.</p>{% endif %}</section></div>
-</main>
+<section class="dashboard-overview" aria-label="ملخص لوحة الإدارة">
+    <div class="dashboard-page-heading">
+        <div>
+            <h2>متابعة أعمال البلدية</h2>
+            <p>الشكاوى والتنبيهات التي تحتاج إلى متابعة.</p>
+        </div>
+        <time class="dashboard-updated" datetime="{{ dashboard_date|date:'c' }}">آخر تحديث: {{ dashboard_date|date:'Y/m/d H:i' }}</time>
+    </div>
+
+    <nav class="dashboard-actions" aria-label="إجراءات سريعة">
+        {% if can_view_complaints %}<a class="dashboard-action primary" href="{% url 'admin:complaints_complaint_changelist' %}">متابعة الشكاوى</a>{% endif %}
+        {% if can_view_complaints or can_view_assignments %}<a class="dashboard-action" href="/staff/reports/">التقارير والمتابعة</a>{% endif %}
+        {% if perms.website.add_newsarticle %}<a class="dashboard-action" href="{% url 'admin:website_newsarticle_add' %}">إضافة خبر أو إعلان</a>{% endif %}
+        <a class="dashboard-action" href="/">عرض الموقع العام</a>
+    </nav>
+
+    {% if metrics %}
+    <section class="dashboard-metrics" aria-label="مؤشرات الشكاوى">
+        {% for metric in metrics %}
+        <a class="dashboard-metric" href="{{ metric.link }}">
+            <span class="dashboard-metric-label">{{ metric.title }}</span>
+            <strong class="dashboard-metric-value">{{ metric.value }}</strong>
+        </a>
+        {% endfor %}
+    </section>
+    {% endif %}
+
+    <div class="dashboard-columns">
+        <section class="dashboard-panel" aria-labelledby="recent-complaints-heading">
+            <div class="dashboard-panel-heading">
+                <h2 id="recent-complaints-heading">أحدث الشكاوى</h2>
+                {% if can_view_complaints %}<a href="{% url 'admin:complaints_complaint_changelist' %}">عرض جميع الشكاوى ←</a>{% endif %}
+            </div>
+            {% if can_view_complaints %}
+                {% if recent_complaints %}
+                <div class="dashboard-table-wrap" tabindex="0" role="region" aria-label="جدول أحدث الشكاوى">
+                    <table class="dashboard-table">
+                        <thead><tr><th scope="col">الرقم المرجعي</th><th scope="col">موضوع الشكوى</th><th scope="col">الحالة</th><th scope="col">التاريخ</th></tr></thead>
+                        <tbody>
+                            {% for item in recent_complaints %}
+                            <tr>
+                                <td><a class="dashboard-reference" href="{% url 'admin:complaints_complaint_change' item.pk %}"><bdi>{{ item.reference }}</bdi></a></td>
+                                <td>{{ item.title }}<small class="dashboard-subtext">{{ item.category|default:'غير مصنفة' }}</small></td>
+                                <td><span class="dashboard-status">{{ item.get_status_display }}</span></td>
+                                <td><time datetime="{{ item.submitted_at|date:'c' }}">{{ item.submitted_at|date:'Y/m/d' }}</time></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}<p class="dashboard-empty">لا توجد شكاوى مسجلة حالياً.</p>{% endif %}
+            {% else %}<p class="dashboard-empty">ستظهر الشكاوى هنا عند منح حسابك صلاحية الاطلاع عليها.</p>{% endif %}
+        </section>
+
+        <section class="dashboard-panel" aria-labelledby="notifications-heading">
+            <div class="dashboard-panel-heading"><h2 id="notifications-heading">تنبيهات المتابعة</h2></div>
+            {% if notifications %}
+            <ul class="dashboard-notifications">
+                {% for item in notifications %}
+                <li>{{ item.message }}<time datetime="{{ item.created_at|date:'c' }}">{{ item.created_at|date:'Y/m/d H:i' }}</time></li>
+                {% endfor %}
+            </ul>
+            {% else %}<p class="dashboard-empty">لا توجد تنبيهات جديدة.</p>{% endif %}
+        </section>
+    </div>
+</section>
 {% endblock %}

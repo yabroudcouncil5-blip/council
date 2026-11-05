@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.forms',
     'core', 'accounts', 'website', 'complaints', 'workflow', 'reporting',
 ]
 
@@ -60,6 +61,10 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = 'config.urls'
+
+# Render widget templates through the same project template engine as admin
+# pages, so the localized dashboard date/upload controls are used as well.
+FORM_RENDERER = 'django.forms.renderers.TemplatesSetting'
 
 TEMPLATES = [
     {
@@ -180,7 +185,6 @@ UNFOLD = {
     'SITE_SUBHEADER': 'منصة الإدارة والخدمات',
     'SITE_SYMBOL': 'account_balance',
     'DASHBOARD_CALLBACK': 'core.dashboard.dashboard_callback',
-    'STYLES': ['core/dashboard.css'],
     'SITE_URL': '/',
     'COLORS': {'primary': {
         '50': '#f0fdfa', '100': '#ccfbf1', '200': '#99f6e4',

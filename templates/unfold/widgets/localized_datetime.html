@@ -1,0 +1,3 @@
+<div class="flex flex-col max-w-2xl min-w-56 relative w-full">
+    <input type="{{ widget.type }}" name="{{ widget.name }}"{% if widget.value != None %} value="{{ widget.value|stringformat:'s' }}"{% endif %} placeholder="{{ placeholder }}" aria-label="{{ placeholder }}"{% for name, value in widget.attrs.items %}{% if name != 'placeholder' and name != 'aria-label' and value is not False %} {{ name }}{% if value is not True %}="{{ value|stringformat:'s' }}"{% endif %}{% endif %}{% endfor %}>
+</div>
