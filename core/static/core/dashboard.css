@@ -9,8 +9,9 @@ html[dir="rtl"] header [x-data*="openUserLinks"]{z-index:200;position:relative;m
 html[dir="rtl"] header [x-data*="openUserLinks"]{display:block;flex:0 0 auto;min-width:36px}
 html[dir="rtl"] header,html[dir="rtl"] header > *{overflow:visible!important}
 html[dir="rtl"] header [x-data*="openUserLinks"] nav{min-width:190px;right:0!important;top:36px!important;background:#fff!important;box-shadow:0 12px 30px #17324d30!important}
-html[dir="rtl"] aside a .material-symbols-outlined,html[dir="rtl"] aside button .material-symbols-outlined{margin-inline-end:10px;vertical-align:middle}
-html[dir="rtl"] aside a,html[dir="rtl"] aside button{gap:10px}
+html[dir="rtl"] aside a,html[dir="rtl"] aside button{direction:ltr;display:flex;align-items:center;justify-content:flex-start;gap:12px!important}
+html[dir="rtl"] aside a .material-symbols-outlined,html[dir="rtl"] aside button .material-symbols-outlined{order:0;margin:0!important;flex:0 0 22px;text-align:left;vertical-align:middle}
+html[dir="rtl"] aside a > span:not(.material-symbols-outlined),html[dir="rtl"] aside button > span:not(.material-symbols-outlined){order:1;direction:rtl;text-align:right;flex:1}
 /* Consistent spacing for all admin form controls and their leading icons. */
 html[dir="rtl"] #content input:not([type="checkbox"]):not([type="radio"]),html[dir="rtl"] #content textarea,html[dir="rtl"] #content select{min-height:44px;padding:10px 14px!important;border-radius:10px!important;line-height:1.5!important}
 html[dir="rtl"] #content input[type="date"],html[dir="rtl"] #content input[type="datetime-local"],html[dir="rtl"] #content input[type="time"]{direction:ltr;text-align:right;padding-right:42px!important}
@@ -21,6 +22,7 @@ html[dir="rtl"] .ql-toolbar.ql-snow .ql-formats{display:inline-flex;align-items:
 html[dir="rtl"] .ql-container.ql-snow{direction:rtl}
 html[dir="rtl"] [role="switch"]{flex-shrink:0;margin-inline-start:12px}
 html[dir="rtl"] .council-dashboard,html[dir="rtl"] .council-dashboard *:not(.material-symbols-outlined){font-family:'Tajawal',Tahoma,Arial,sans-serif!important}
+html[dir="rtl"] .council-dashboard{font-size:15px;letter-spacing:0;background:#f4f8f7;padding:24px;border-radius:18px}
 html[dir="rtl"] input,html[dir="rtl"] textarea,html[dir="rtl"] select,html[dir="rtl"] button{font-family:inherit}
 /* Keep every header and value on the same edge, including numeric/boolean columns. */
 html[dir="rtl"] #content table{direction:rtl}

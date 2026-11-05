@@ -57,6 +57,22 @@ class HistoryInline(TabularInline):
     def has_add_permission(self, request, obj=None):
         return False
 
+class AssignmentInline(TabularInline):
+    model = ComplaintAssignment
+    extra = 0
+    fields = ('department', 'status', 'priority', 'due_at', 'assigned_at')
+    readonly_fields = ('assigned_at',)
+    verbose_name = 'إحالة إلى قسم'
+    verbose_name_plural = 'الإحالات إلى الأقسام'
+
+class ReviewInline(TabularInline):
+    model = ComplaintReview
+    extra = 0
+    fields = ('decision', 'reviewer', 'reason', 'created_at')
+    readonly_fields = ('created_at',)
+    verbose_name = 'مراجعة'
+    verbose_name_plural = 'سجل المراجعات'
+
 
 @admin.register(Complaint)
 class ComplaintAdmin(CouncilAdmin):
@@ -72,7 +88,7 @@ class ComplaintAdmin(CouncilAdmin):
         ('بيانات التواصل مع المواطن', {'fields': ('name', ('phone', 'email')), 'description': 'بيانات داخلية؛ لا تُنشر على الموقع العام.'}),
         ('التواريخ', {'fields': ('submitted_at', 'updated_at'), 'classes': ('collapse',)}),
     )
-    inlines = (HistoryInline,)
+    inlines = (AssignmentInline, ReviewInline, HistoryInline)
 
     def has_add_permission(self, request):
         # Public submission creates and returns the complaint reference.
@@ -83,7 +99,7 @@ class AssignmentForm(forms.ModelForm):
     class Meta:
         model = ComplaintAssignment
         fields = '__all__'
-        widgets = {'due_at': forms.DateTimeInput(attrs={'type': 'datetime-local'}, format='%Y-%m-%dT%H:%M')}
+        widgets = {'due_at': forms.DateTimeInput(attrs={'type': 'datetime-local'}, format='%Y-%m-%dT%H:%M'), 'officer': forms.HiddenInput()}
 
     def clean(self):
         data = super().clean()
@@ -107,7 +123,7 @@ class AssignmentAdmin(CouncilAdmin):
     readonly_fields = ('assigned_at',)
     ordering = ('-assigned_at',)
     fieldsets = (
-        ('توجيه الشكوى', {'fields': ('complaint', 'department', 'officer'), 'description': 'اختر الشكوى ثم القسم والموظف المسؤول عن المتابعة.'}),
+        ('توجيه الشكوى', {'fields': ('complaint', 'department', 'officer'), 'description': 'اختر القسم فقط؛ يتولى فريق القسم توزيع المهمة داخلياً.'}),
         ('خطة المتابعة', {'fields': (('priority', 'status'), 'due_at', 'assigned_at')}),
     )
 

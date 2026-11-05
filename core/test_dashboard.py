@@ -16,7 +16,7 @@ class CouncilDashboardTests(TestCase):
         response = self.client.get('/admin/')
         self.assertContains(response, 'YBC-TEST-1')
         self.assertEqual(response.context['metrics'][0]['value'], 1)
-        self.assertContains(response, '/admin/complaints/complaintassignment/add/')
+        self.assertContains(response, '/admin/complaints/complaint/')
         self.assertEqual(self.client.get('/admin/complaints/complaintassignment/add/').status_code, 200)
         self.assertEqual(self.client.get('/admin/complaints/complaintreview/add/').status_code, 200)
 
@@ -65,7 +65,7 @@ class CouncilDashboardTests(TestCase):
         self.assertEqual(assignment.due_at.hour, 10)
         for name in ['priority', 'status', 'department', 'officer']:
             widget = form.fields[name].widget
-            self.assertIsInstance(getattr(widget, 'widget', widget), forms.RadioSelect)
+        self.assertIsInstance(getattr(widget, 'widget', widget), forms.HiddenInput)
         self.client.force_login(self.admin)
         response = self.client.get('/admin/core/department/')
         self.assertContains(response, 'core/dashboard.')
