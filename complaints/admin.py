@@ -1,5 +1,7 @@
 from django import forms
 from django.contrib import admin
+from django.shortcuts import redirect
+from django.urls import path
 from django.utils.html import format_html
 from unfold.admin import ModelAdmin, TabularInline
 from unfold.widgets import UnfoldAdminSelectWidget, UnfoldAdminTextareaWidget
@@ -302,6 +304,23 @@ class AssignmentAdmin(CouncilAdmin):
 
     def has_module_permission(self, request):
         return False
+
+    def get_urls(self):
+        """Keep legacy assignment URLs from opening a confusing standalone page."""
+        urls = super().get_urls()
+
+        def go_to_complaints(request, object_id=None):
+            target = 'admin:complaints_complaint_changelist'
+            if object_id:
+                target = 'admin:complaints_complaint_change'
+                return redirect(target, object_id)
+            return redirect(target)
+
+        return [
+            path('', go_to_complaints, name='complaintassignment_changelist'),
+            path('<path:object_id>/change/', go_to_complaints, name='complaintassignment_change'),
+            *urls,
+        ]
 
     form = AssignmentForm
     list_display = ('complaint', 'department', 'officer', 'status', 'priority', 'due_at')

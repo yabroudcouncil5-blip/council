@@ -202,7 +202,6 @@ UNFOLD = {
                 {'title': 'لوحة الإدارة', 'icon': 'dashboard', 'link': '/admin/', 'permission': 'core.admin_permissions.can_view_dashboard'},
                 {'title': 'التقارير والمتابعة', 'icon': 'monitoring', 'link': '/staff/reports/', 'permission': 'core.admin_permissions.can_view_reports'},
                 {'title': 'الشكاوى ومسار المعالجة', 'icon': 'inbox', 'link': '/admin/complaints/complaint/', 'permission': 'core.admin_permissions.can_view_complaints'},
-                {'title': 'الإحالات والمتابعة', 'icon': 'assignment', 'link': '/admin/complaints/complaintassignment/', 'permission': 'core.admin_permissions.can_view_assignments'},
             ]},
             {'title': 'إدارة البلدية', 'separator': True, 'items': [
                 {'title': 'الأقسام', 'icon': 'account_tree', 'link': '/admin/core/department/', 'permission': 'core.admin_permissions.can_view_departments'},
