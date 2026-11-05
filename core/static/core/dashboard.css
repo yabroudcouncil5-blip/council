@@ -172,6 +172,11 @@ html[dir="rtl"] #content .field-row:has(input[type="checkbox"]) label { margin-i
 }
 #content .dashboard-attachment-preview img { width: 100%; height: 100%; object-fit: cover; }
 #content .dashboard-attachment-pdf { width: 260px; height: 150px; border: 1px solid var(--dashboard-border); border-radius: 8px; }
+#content .dashboard-action-review { margin: 0 0 12px; padding: 14px 16px; border: 1px solid var(--dashboard-border); border-radius: 10px; background: var(--dashboard-subtle); }
+#content .dashboard-action-review:last-child { margin-bottom: 0; }
+#content .dashboard-action-review strong, #content .dashboard-action-review span { display: block; }
+#content .dashboard-action-review span { margin-top: 4px; color: var(--dashboard-muted); font-size: 12px; }
+#content .dashboard-action-review p { margin: 8px 0 0; }
 html[dir="rtl"] #content table th,
 html[dir="rtl"] #content table td { text-align: start; vertical-align: middle; }
 #result_list .action-checkbox,

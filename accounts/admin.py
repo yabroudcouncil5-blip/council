@@ -4,6 +4,7 @@ from django.contrib.auth.models import User, Group
 from unfold.admin import ModelAdmin
 from unfold.forms import AdminPasswordChangeForm, UserChangeForm, UserCreationForm
 from django import forms
+from core.models import Department
 
 admin.site.unregister(User)
 admin.site.unregister(Group)
@@ -18,11 +19,13 @@ ROLE_CHOICES = (
 
 class RoleMixin:
     role = forms.ChoiceField(label='الدور الوظيفي', choices=ROLE_CHOICES, help_text='اختر دوراً واحداً فقط؛ سيتم ضبط الصلاحيات تلقائياً.')
+    departments = forms.ModelMultipleChoiceField(label='الأقسام', queryset=Department.objects.filter(active=True).order_by('name'), required=False, help_text='اختر القسم أو الأقسام التي يعمل فيها الموظف.')
 
     def save(self, commit=True):
         user = super().save(commit)
         if commit:
             self.apply_role(user)
+            user.council_departments.set(self.cleaned_data.get('departments', []))
         return user
 
     def apply_role(self, user):
@@ -47,6 +50,7 @@ class SimpleUserChangeForm(RoleMixin, UserChangeForm):
         elif self.instance.groups.filter(name='Complaint Reviewer').exists(): self.initial['role'] = 'reviewer'
         elif self.instance.groups.filter(name='Department Manager').exists(): self.initial['role'] = 'supervisor'
         else: self.initial['role'] = 'staff'
+        self.initial['departments'] = self.instance.council_departments.filter(active=True)
 
 @admin.register(User)
 class UserAdmin(BaseUserAdmin, ModelAdmin):
@@ -55,13 +59,44 @@ class UserAdmin(BaseUserAdmin, ModelAdmin):
     change_password_form = AdminPasswordChangeForm
     fieldsets = (
         (None, {'fields': ('username', 'password')}),
-        ('بيانات الموظف', {'fields': ('first_name', 'last_name', 'email', 'role', 'is_active')}),
+        ('بيانات الموظف', {'fields': ('first_name', 'last_name', 'email', 'role', 'departments', 'is_active')}),
         ('التواريخ', {'fields': ('last_login', 'date_joined')}),
     )
     add_fieldsets = (
-        (None, {'classes': ('wide',), 'fields': ('username', 'password1', 'password2', 'first_name', 'last_name', 'email', 'role', 'is_active')}),
+        (None, {'classes': ('wide',), 'fields': ('username', 'password1', 'password2', 'first_name', 'last_name', 'email', 'role', 'departments', 'is_active')}),
     )
     readonly_fields = ('last_login', 'date_joined')
+
+    def get_form(self, request, obj=None, **kwargs):
+        # Django's ModelForm factory rejects non-model fields listed in
+        # fieldsets. Build the form without the virtual departments field,
+        # then add it back for the rendered admin form.
+        fieldsets = self.fieldsets
+        add_fieldsets = self.add_fieldsets
+        cleaned = tuple(
+            (title, {**options, 'fields': tuple(
+                field for field in options.get('fields', ()) if field != 'departments'
+            )}) for title, options in fieldsets
+        )
+        self.fieldsets = cleaned
+        self.add_fieldsets = tuple(
+            (title, {**options, 'fields': tuple(field for field in options.get('fields', ()) if field != 'departments')})
+            for title, options in add_fieldsets
+        )
+        if 'fields' in kwargs and kwargs['fields']:
+            kwargs['fields'] = tuple(field for field in kwargs['fields'] if field != 'departments')
+        try:
+            form = super().get_form(request, obj, **kwargs)
+        finally:
+            self.fieldsets = fieldsets
+            self.add_fieldsets = add_fieldsets
+        form.base_fields['departments'] = forms.ModelMultipleChoiceField(
+            label='الأقسام', queryset=Department.objects.filter(active=True).order_by('name'), required=False,
+            help_text='اختر القسم أو الأقسام التي يعمل فيها الموظف.',
+        )
+        if obj:
+            form.base_fields['departments'].initial = obj.council_departments.filter(active=True)
+        return form
 
 
 @admin.register(Group)

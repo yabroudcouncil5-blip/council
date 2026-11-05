@@ -116,6 +116,7 @@ class AssignmentInline(SelectionOnlyRelatedFieldsMixin, TabularInline):
     verbose_name_plural = 'الإحالات إلى الأقسام'
 
 class ReviewInlineForm(forms.ModelForm):
+    assignment = forms.ModelChoiceField(label='الإحالة المرتبطة', queryset=ComplaintAssignment.objects.none(), required=False, widget=UnfoldAdminSelectWidget)
     decision = forms.ChoiceField(
         label='قرار المراجعة',
         choices=[('', 'اختر قرار المراجعة'), *ComplaintReview.DECISIONS],
@@ -124,7 +125,7 @@ class ReviewInlineForm(forms.ModelForm):
 
     class Meta:
         model = ComplaintReview
-        fields = ('decision', 'reason')
+        fields = ('assignment', 'decision', 'reason')
         widgets = {
             'decision': UnfoldAdminSelectWidget,
             'reason': UnfoldAdminTextareaWidget(attrs={'rows': 3, 'class': 'dashboard-review-notes'}),
@@ -136,21 +137,32 @@ class ReviewInline(SelectionOnlyRelatedFieldsMixin, TabularInline):
     form = ReviewInlineForm
     extra = 0
     can_delete = False
-    fields = ('decision', 'reason', 'reviewer', 'created_at')
+    fields = ('assignment', 'decision', 'reason', 'reviewer', 'created_at')
     readonly_fields = ('reviewer', 'created_at')
     verbose_name = 'مراجعة'
     verbose_name_plural = 'سجل المراجعات'
 
     def get_formset(self, request, obj=None, **kwargs):
         BaseFormSet = super().get_formset(request, obj, **kwargs)
+        assignments = ComplaintAssignment.objects.filter(complaint=obj).order_by('-assigned_at') if obj else ComplaintAssignment.objects.none()
 
         class CurrentReviewerFormSet(BaseFormSet):
+            def add_fields(self, form, index):
+                super().add_fields(form, index)
+                form.fields['assignment'].queryset = assignments
+
             def save_new(self, form, commit=True):
                 form.instance.reviewer = request.user
                 instance = super().save_new(form, commit=commit)
                 if commit and instance:
                     status_map = {'approved': 'completed', 'closed': 'completed', 'returned': 'assigned', 'additional_assignment': 'transferred'}
                     next_status = status_map.get(instance.decision)
+                    if instance.assignment and instance.decision == 'approved':
+                        instance.assignment.status = 'approved'
+                        instance.assignment.save(update_fields=('status',))
+                    elif instance.assignment and instance.decision == 'returned':
+                        instance.assignment.status = 'returned'
+                        instance.assignment.save(update_fields=('status',))
                     if next_status:
                         complaint = instance.complaint
                         complaint.status = next_status
@@ -164,6 +176,24 @@ class ReviewInline(SelectionOnlyRelatedFieldsMixin, TabularInline):
                                 'assigned': 'أعيدت الشكوى للقسم لاستكمال المعالجة',
                                 'transferred': 'أحيلت الشكوى إلى قسم آخر لاستكمال المعالجة',
                             }[next_status],
+                        )
+                    if request.user.is_superuser and instance.decision == 'approved' and complaint.status == 'completed':
+                        from django.utils import timezone
+                        ComplaintPublication.objects.update_or_create(
+                            complaint=complaint,
+                            defaults={
+                                'summary': instance.reason or 'تمت معالجة الشكوى واعتمادها.',
+                                'visibility': 'tracked',
+                                'approved': True,
+                                'approved_by': request.user,
+                                'published_at': timezone.now(),
+                            },
+                        )
+                        ComplaintStatusHistory.objects.create(
+                            complaint=complaint,
+                            status='completed',
+                            actor=request.user,
+                            public_message='تم اعتماد الشكوى ونشر النتيجة للمواطن',
                         )
                 return instance
 
@@ -210,17 +240,40 @@ class ComplaintAdmin(CouncilAdmin):
     search_fields = ('reference', 'title', 'description', 'name', 'phone')
     ordering = ('-submitted_at',)
     list_select_related = ('category',)
-    readonly_fields = ('reference', 'status', 'submitted_at', 'updated_at')
+    readonly_fields = ('reference', 'status', 'submitted_at', 'updated_at', 'staff_actions_review')
     fieldsets = (
         ('بيانات الشكوى', {'fields': ('reference', 'title', 'description', ('category', 'status'), 'location')}),
         ('بيانات التواصل مع المواطن', {'fields': ('name', ('phone', 'email')), 'description': 'بيانات داخلية؛ لا تُنشر على الموقع العام.'}),
+        ('مراجعة إجراءات الفريق والأدلة', {'fields': ('staff_actions_review',), 'description': 'راجع الملاحظات والأدلة قبل اعتماد الشكوى أو إعادتها للقسم.'}),
         ('التواريخ', {'fields': ('submitted_at', 'updated_at'), 'classes': ('collapse',)}),
     )
-    inlines = (AssignmentInline, ReviewInline, PublicationInline, AttachmentInline, HistoryInline)
+    inlines = (AssignmentInline, ReviewInline, AttachmentInline, HistoryInline)
 
     def has_add_permission(self, request):
         # Public submission creates and returns the complaint reference.
         return False
+
+    @admin.display(description='إجراءات الفريق والأدلة')
+    def staff_actions_review(self, obj):
+        if not obj:
+            return 'ستظهر إجراءات الفريق بعد إرسال المعالجة.'
+        actions = AssignmentAction.objects.filter(assignment__complaint=obj).select_related('actor', 'assignment__department').prefetch_related('assignment__complaint__attachments').order_by('-created_at')
+        if not actions.exists():
+            return 'لم تُسجل إجراءات من الفريق بعد.'
+        rows = []
+        for action in actions:
+            evidence = obj.attachments.filter(uploaded_by=action.actor, source='staff').order_by('-uploaded_at')
+            evidence_links = [format_html('<a href="{}" target="_blank" rel="noopener">{}</a>', item.file.url, item.original_name) for item in evidence if item.file]
+            rows.append(format_html(
+                '<article class="dashboard-action-review"><strong>{}</strong><span>{} · {}</span><p>{}</p>{}<p>{}</p></article>',
+                action.assignment.department.name,
+                action.actor.get_full_name() or action.actor.username,
+                action.created_at.strftime('%Y/%m/%d %H:%M'),
+                action.internal_action or 'لا توجد ملاحظات داخلية.',
+                format_html('<p>الأدلة: {}</p>', format_html(' · '.join(str(link) for link in evidence_links))) if evidence_links else '',
+                action.public_message or 'لا توجد رسالة عامة.',
+            ))
+        return format_html(''.join(str(row) for row in rows))
 
 
 class AssignmentForm(forms.ModelForm):

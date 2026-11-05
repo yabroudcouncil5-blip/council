@@ -100,7 +100,7 @@ class ComplaintReview(models.Model):
     def __str__(self):
         return f"{self.complaint.reference} · {self.get_decision_display()}"
 
-    DECISIONS = [('returned','إعادة للاستكمال'),('additional_assignment','إحالة إضافية'),('approved','اعتماد'),('closed','إغلاق')]
+    DECISIONS = [('returned','إعادة للقسم'),('additional_assignment','إحالة إلى قسم آخر'),('approved','اعتماد وإغلاق ونشر'),('closed','إغلاق دون نشر')]
     complaint = models.ForeignKey(Complaint, on_delete=models.CASCADE, related_name='reviews', verbose_name='الشكوى')
     assignment = models.ForeignKey(ComplaintAssignment, null=True, blank=True, on_delete=models.CASCADE, verbose_name='الإحالة')
     reviewer = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, verbose_name='المراجع')
