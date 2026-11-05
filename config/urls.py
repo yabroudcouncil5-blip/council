@@ -18,7 +18,7 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
-from core.views import health, council_logo
+from core.views import health, council_logo, UnifiedLoginView
 from website.views import upload_editor_image, content_image
 from complaints.views import complaint_form, tracking_form, submit_complaint, track_complaint, recovery_request, review_queue, assign_complaint, action_submission, final_review, publish_resolution, public_resolutions, dashboard_report, staff_dashboard
 from django.contrib.auth import views as auth_views
@@ -43,7 +43,7 @@ urlpatterns = [
     path('staff/publish/', publish_resolution),
     path('api/public/resolutions/', public_resolutions),
     path('staff/reports/', dashboard_report),
-    path('staff/login/', auth_views.LoginView.as_view(template_name='registration/login.html'), name='login'),
+    path('staff/login/', UnifiedLoginView.as_view(), name='login'),
     path('staff/logout/', auth_views.LogoutView.as_view(), name='logout'),
 ]
 admin.site.site_header = 'إدارة بلدية يبرود'

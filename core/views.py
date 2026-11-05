@@ -11,6 +11,16 @@ from django.utils.cache import get_conditional_response, patch_cache_control
 from PIL import Image, ImageOps
 from io import BytesIO
 from hashlib import sha256
+from django.contrib.auth.views import LoginView
+
+
+class UnifiedLoginView(LoginView):
+    template_name = 'registration/login.html'
+
+    def get_success_url(self):
+        if self.request.user.is_superuser:
+            return '/admin/'
+        return '/staff/dashboard/'
 
 
 def council_logo(request, filename):
