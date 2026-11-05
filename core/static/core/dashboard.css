@@ -180,18 +180,123 @@ html[dir="rtl"] #content .field-row:has(input[type="checkbox"]) label { margin-i
 
 /* Complaint details: compact, readable workflow cards. */
 #content form .module h2, #content .inline-group h2 { padding: 16px 22px; border-radius: 12px 12px 0 0; background: var(--dashboard-subtle); font-size: 16px; }
+#content fieldset.module { margin-bottom: 18px !important; }
 #content .aligned .form-row { padding: 14px 20px; border-bottom: 1px solid var(--dashboard-border); }
+#content fieldset.module { padding: 0 !important; }
+#content fieldset.module.aligned .form-row { min-height: 0 !important; margin: 0 !important; }
+#content fieldset.module.aligned .form-row > div { padding-block: 0 !important; }
+#content .form-row { min-height: 0 !important; padding-block: 8px !important; margin-block: 0 !important; }
+#content .form-row .fieldBox { margin-block: 0 !important; }
+#content .form-row label { margin-block: 0 5px !important; }
 #content .aligned .form-row:last-child { border-bottom: 0; }
 #content .aligned .form-row > div { min-width: 0; }
 #content .aligned .form-row label { display: block; margin-bottom: 7px; font-weight: 700; color: var(--dashboard-ink); }
 #content .aligned .form-row input, #content .aligned .form-row textarea, #content .aligned .form-row select { width: 100%; max-width: none; min-height: 44px; border-radius: 9px; }
+#content fieldset.module.aligned .form-row textarea { min-height: 150px; height: 150px; }
 #content .inline-group { margin-top: 24px; overflow: hidden; border: 1px solid var(--dashboard-border); border-radius: 12px; background: var(--dashboard-surface); }
 #content .inline-group .tabular tr.form-row { border-bottom: 1px solid var(--dashboard-border); }
 #content .inline-group .tabular td, #content .inline-group .tabular th { padding: 12px 14px; vertical-align: top; }
 #content .inline-group .tabular td input, #content .inline-group .tabular td select, #content .inline-group .tabular td textarea { min-height: 42px; border-radius: 8px; }
 #content .inline-group .tabular td textarea { min-height: 92px; }
+#content .inline-group .tabular td.original p { display: none; }
+#content .inline-group .tabular tr.form-row { background: transparent !important; }
+#content .inline-group .tabular tr.form-row td { padding-block: 8px; }
+#content .inline-group .tabular tr.form-row td input, #content .inline-group .tabular tr.form-row td textarea, #content .inline-group .tabular tr.form-row td select { box-shadow: none; border-color: transparent; background: transparent; }
+#content .inline-group .tabular tr.form-row td.field-status select { color: var(--dashboard-accent); font-weight: 700; }
+#content .inline-group .tabular .readonly { padding: 0; background: transparent; border: 0; box-shadow: none; }
 #content .field-status select, #content .field-decision select, #content .field-visibility select { font-weight: 700; }
 #content .field-status, #content .field-decision { min-width: 180px; }
+
+/* Complaint change page: keep the record scannable without oversized empty
+   form rows.  Unfold renders this screen as a change-form, so these rules are
+   deliberately scoped to that page and do not alter list or user screens. */
+body.change-form #content-main > form > .module,
+body.change-form #content-main > form > fieldset.module { margin-bottom: 14px !important; }
+body.change-form #content-main > form > fieldset.module > h2,
+body.change-form #content-main > form > .module > h2 { padding: 11px 16px; font-size: 15px; }
+body.change-form #content-main > form > fieldset.module.aligned .form-row { padding: 9px 16px !important; }
+body.change-form #content-main > form > fieldset.module.aligned .form-row label { margin-bottom: 4px !important; font-size: 13px; }
+body.change-form #content-main > form > fieldset.module.aligned .form-row input,
+body.change-form #content-main > form > fieldset.module.aligned .form-row select { min-height: 38px; }
+body.change-form #content-main > form > fieldset.module.aligned .form-row textarea { min-height: 116px; height: 116px; }
+body.change-form #content-main > form > fieldset.module.aligned .form-row .help,
+body.change-form #content-main > form > fieldset.module.aligned .form-row .helptext { margin-top: 3px; font-size: 12px; }
+body.change-form #content-main > form > .inline-group { margin-top: 14px; margin-bottom: 14px; border-radius: 10px; }
+body.change-form #content-main > form > .inline-group > h2 { padding: 11px 16px; font-size: 15px; }
+body.change-form #content-main > form > .inline-group .tabular th { padding: 8px 10px; font-size: 12px; white-space: nowrap; }
+body.change-form #content-main > form > .inline-group .tabular td { padding: 7px 10px; line-height: 1.45; }
+body.change-form #content-main > form > .inline-group .tabular td input,
+body.change-form #content-main > form > .inline-group .tabular td select { min-height: 36px; }
+body.change-form #content-main > form > .inline-group .tabular td textarea { min-height: 70px; height: 70px; }
+body.change-form #content-main > form > .inline-group .tabular .readonly { min-height: 0; line-height: 1.45; }
+body.change-form #content-main > form > .inline-group .tabular tr.form-row > td { height: auto; }
+body.change-form #content-main > form > .inline-group .dashboard-attachment-preview { width: 112px; height: 76px; }
+body.change-form #content-main > form > .inline-group .dashboard-attachment-pdf { width: 180px; height: 110px; }
+body.change-form #content-main > form > .inline-group .dashboard-action-review { margin-bottom: 8px; padding: 10px 12px; }
+body.change-form #content-main > form > .inline-group .dashboard-action-review p { margin-top: 4px; }
+body.change-form #content-main > form > .inline-group .dashboard-action-review span { margin-top: 2px; }
+
+/* Staff account form */
+/* Compact staff account form.  Unfold renders CheckboxSelectMultiple as
+   nested divs (rather than a list), so style the actual generated markup. */
+body.model-user.change-form #content .form-row { padding-block: 6px !important; }
+body.model-user.change-form #content fieldset.module { margin-bottom: 12px !important; }
+body.model-user.change-form #content .field-role select { min-height: 42px; font-weight: 700; }
+body.model-user.change-form #content .field-departments {
+  padding: 12px 16px !important;
+  border: 1px solid var(--dashboard-border);
+  border-radius: 12px;
+  background: var(--dashboard-subtle);
+}
+body.model-user.change-form #content .field-departments > .grow > #id_departments {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 8px;
+  width: 100%;
+}
+body.model-user.change-form #content .field-departments #id_departments > div { min-width: 0; }
+body.model-user.change-form #content .field-departments #id_departments label {
+  display: flex !important;
+  align-items: center;
+  gap: 9px;
+  min-height: 42px;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0 !important;
+  padding: 8px 12px;
+  overflow: hidden;
+  border: 1px solid var(--dashboard-border);
+  border-radius: 9px;
+  background: var(--dashboard-surface);
+  cursor: pointer;
+  font-weight: 600 !important;
+  white-space: normal;
+}
+body.model-user.change-form #content .field-departments #id_departments label:has(input:checked) {
+  border-color: var(--dashboard-accent);
+  background: var(--dashboard-accent-soft);
+  color: var(--dashboard-accent);
+}
+body.model-user.change-form #content .field-departments #id_departments input[type="checkbox"] {
+  flex: 0 0 18px;
+  width: 18px !important;
+  min-width: 18px !important;
+  height: 18px !important;
+  min-height: 18px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  appearance: auto !important;
+  background: transparent !important;
+  accent-color: var(--dashboard-accent);
+}
+body.model-user.change-form #content .field-departments .leading-relaxed,
+body.model-user.change-form #content .field-role .leading-relaxed {
+  display: block;
+  margin-top: 7px;
+  color: var(--dashboard-muted);
+  font-size: 12px;
+}
+body.model-user.change-form #content .field-is_active .flex-row { align-items: center; }
 html[dir="rtl"] #content table th,
 html[dir="rtl"] #content table td { text-align: start; vertical-align: middle; }
 #result_list .action-checkbox,

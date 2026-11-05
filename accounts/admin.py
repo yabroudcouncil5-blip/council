@@ -3,6 +3,7 @@ from django.contrib.auth.admin import UserAdmin as BaseUserAdmin, GroupAdmin as 
 from django.contrib.auth.models import User, Group
 from unfold.admin import ModelAdmin
 from unfold.forms import AdminPasswordChangeForm, UserChangeForm, UserCreationForm
+from unfold.widgets import UnfoldAdminSelectWidget
 from django import forms
 from core.models import Department
 
@@ -18,8 +19,8 @@ ROLE_CHOICES = (
 )
 
 class RoleMixin:
-    role = forms.ChoiceField(label='الدور الوظيفي', choices=ROLE_CHOICES, help_text='اختر دوراً واحداً فقط؛ سيتم ضبط الصلاحيات تلقائياً.')
-    departments = forms.ModelMultipleChoiceField(label='الأقسام', queryset=Department.objects.filter(active=True).order_by('name'), required=False, help_text='اختر القسم أو الأقسام التي يعمل فيها الموظف.')
+    role = forms.ChoiceField(label='الدور الوظيفي', choices=ROLE_CHOICES, widget=UnfoldAdminSelectWidget, help_text='اختر دوراً واحداً؛ ستُضبط الصلاحيات تلقائياً.')
+    departments = forms.ModelMultipleChoiceField(label='الأقسام', queryset=Department.objects.filter(active=True).order_by('name'), required=False, widget=forms.CheckboxSelectMultiple, help_text='حدد الأقسام التي يعمل فيها الموظف.')
 
     def save(self, commit=True):
         user = super().save(commit)
@@ -60,7 +61,7 @@ class UserAdmin(BaseUserAdmin, ModelAdmin):
     fieldsets = (
         (None, {'fields': ('username', 'password')}),
         ('بيانات الموظف', {'fields': ('first_name', 'last_name', 'email', 'role', 'departments', 'is_active')}),
-        ('التواريخ', {'fields': ('last_login', 'date_joined')}),
+        ('التواريخ', {'classes': ('collapse',), 'fields': ('last_login', 'date_joined')}),
     )
     add_fieldsets = (
         (None, {'classes': ('wide',), 'fields': ('username', 'password1', 'password2', 'first_name', 'last_name', 'email', 'role', 'departments', 'is_active')}),
@@ -92,7 +93,8 @@ class UserAdmin(BaseUserAdmin, ModelAdmin):
             self.add_fieldsets = add_fieldsets
         form.base_fields['departments'] = forms.ModelMultipleChoiceField(
             label='الأقسام', queryset=Department.objects.filter(active=True).order_by('name'), required=False,
-            help_text='اختر القسم أو الأقسام التي يعمل فيها الموظف.',
+            widget=forms.CheckboxSelectMultiple,
+            help_text='حدد الأقسام التي يعمل فيها الموظف.',
         )
         if obj:
             form.base_fields['departments'].initial = obj.council_departments.filter(active=True)

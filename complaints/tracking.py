@@ -10,12 +10,28 @@ def tracking_result(data):
     labels = dict(Complaint.STATUS)
     publication = getattr(complaint, 'publication', None)
     is_public = bool(publication and publication.approved and publication.visibility in {'tracked', 'public'})
-    public_events = complaint.status_history.order_by('created_at', 'pk')
+    public_events = list(complaint.status_history.order_by('created_at', 'pk'))
+    known = {(event.status, event.created_at) for event in public_events}
+    for assignment in complaint.assignments.select_related('department').order_by('assigned_at', 'pk'):
+        if not any(event.status == 'assigned' and event.created_at >= assignment.assigned_at for event in public_events):
+            public_events.append(type('PublicEvent', (), {
+                'status': 'assigned',
+                'public_message': f'تمت إحالة الشكوى إلى قسم {assignment.department.name}',
+                'created_at': assignment.assigned_at,
+            })())
+    public_events.sort(key=lambda event: (event.created_at, getattr(event, 'pk', 0)))
+    if not public_events:
+        public_events.append(type('PublicEvent', (), {
+            'status': 'submitted', 'public_message': 'تم استلام الشكوى', 'created_at': complaint.submitted_at,
+        })())
     visible_status = complaint.get_status_display()
     if not is_public and complaint.status in {'completed', 'closed'}:
         visible_status = labels.get('final_review', 'قيد التحقق النهائي')
-        public_events = public_events.exclude(status__in={'completed', 'closed'})
-    return {
+        public_events = [event for event in public_events if event.status not in {'completed', 'closed'}]
+    evidence = []
+    if is_public:
+        evidence = [item.file.url for item in complaint.attachments.all() if item.file and item.visibility in {'tracked', 'public'}]
+    result = {
         'reference': complaint.reference,
         'status': visible_status,
         'submitted_at': complaint.submitted_at.isoformat(),
@@ -24,6 +40,9 @@ def tracking_result(data):
             for item in public_events
         ],
     }
+    if evidence:
+        result['evidence'] = evidence
+    return result
 
 
 def tracking_context(data):
