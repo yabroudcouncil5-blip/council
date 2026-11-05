@@ -9,6 +9,7 @@
   </div>
   <div class="editor-surface">{{ editor_html|safe }}</div>
   <input type="file" class="editor-image-file" accept="image/png,image/jpeg,image/webp" hidden>
+  <button type="button" class="editor-replace-image" hidden>استبدال الصورة المحددة</button>
   <p class="editor-feedback" role="status" aria-live="polite"></p>
   <div class="editor-source">{% include 'django/forms/widgets/textarea.html' %}</div>
 </div>

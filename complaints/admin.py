@@ -1,5 +1,6 @@
 from django import forms
 from django.contrib import admin
+from django.utils.html import format_html
 from unfold.admin import ModelAdmin, TabularInline
 from unfold.widgets import UnfoldAdminSelectWidget, UnfoldAdminTextareaWidget
 from core.admin_widgets import SelectionOnlyRelatedFieldsMixin
@@ -67,10 +68,29 @@ class AttachmentInline(SelectionOnlyRelatedFieldsMixin, TabularInline):
     model = ComplaintAttachment
     extra = 0
     can_delete = False
-    fields = ('file', 'original_name', 'source', 'visibility', 'uploaded_by', 'uploaded_at')
-    readonly_fields = ('original_name', 'uploaded_by', 'uploaded_at')
+    fields = ('preview', 'file', 'original_name', 'source', 'visibility', 'uploaded_by', 'uploaded_at')
+    readonly_fields = ('preview', 'original_name', 'uploaded_by', 'uploaded_at')
     verbose_name = 'مرفق ودليل'
     verbose_name_plural = 'المرفقات والأدلة'
+
+    @admin.display(description='معاينة')
+    def preview(self, obj):
+        if not obj or not obj.file:
+            return '—'
+        url = obj.file.url
+        name = (obj.original_name or '').lower()
+        if name.endswith(('.jpg', '.jpeg', '.png', '.webp', '.gif')):
+            return format_html(
+                '<a href="{}" target="_blank" rel="noopener" class="dashboard-attachment-preview">'
+                '<img src="{}" alt="{}" loading="lazy" /></a>',
+                url, url, obj.original_name,
+            )
+        if name.endswith('.pdf'):
+            return format_html(
+                '<iframe src="{}" title="{}" class="dashboard-attachment-pdf"></iframe>',
+                url, obj.original_name,
+            )
+        return format_html('<a href="{}" target="_blank" rel="noopener">فتح المرفق</a>', url)
 
     def has_add_permission(self, request, obj=None):
         return request.user.is_superuser and super().has_add_permission(request, obj)

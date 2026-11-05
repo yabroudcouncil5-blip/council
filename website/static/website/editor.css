@@ -110,6 +110,7 @@
   margin: 10px 0;
   color: #0f766e;
 }
+.council-editor .editor-replace-image { margin-top: 8px; border: 1px solid #0f766e; border-radius: 7px; padding: 7px 12px; background: #ecfdf5; color: #0f766e; font: inherit; cursor: pointer; }
 
 .council-editor .ql-editor.ql-blank::before {
   right: 16px;

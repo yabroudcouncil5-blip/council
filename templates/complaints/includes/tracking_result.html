@@ -1,7 +1,7 @@
   {% if tracking_error %}<div class="notice error" role="alert">{{ tracking_error }}</div>{% endif %}
   {% if tracking_result %}
   <section class="card service-panel" aria-live="polite">
-    <div class="eyebrow">{{ tracking_result.status }}</div>
+    <div class="tracking-status" role="status"><span>الحالة الحالية</span><strong>{{ tracking_result.status }}</strong></div>
     <h2>متابعة الشكوى</h2>
     <p>الرقم المرجعي: <bdi>{{ tracking_result.reference }}</bdi></p>
     <h3>تحديثات الشكوى</h3>

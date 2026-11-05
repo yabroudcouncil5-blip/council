@@ -33,7 +33,7 @@ class Page(models.Model):
         return '/' + self.slug + '/' if self.slug in {'about', 'services'} else '/pages/' + self.slug + '/'
 
     slug = models.SlugField(unique=True, verbose_name='الرابط المختصر')
-    title = models.CharField(max_length=200, verbose_name='موضوع الشكوى')
+    title = models.CharField(max_length=200, verbose_name='عنوان الصفحة')
     body = models.TextField(verbose_name='المحتوى')
     published = models.BooleanField(default=False, verbose_name='منشور')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='آخر تحديث')

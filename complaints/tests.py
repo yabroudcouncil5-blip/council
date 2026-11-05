@@ -2,7 +2,7 @@ from django.test import TestCase
 
 # Create your tests here.
 from django.test import TestCase, Client, override_settings
-from .models import Complaint, RecoveryRequest
+from .models import Complaint, ComplaintStatusHistory, RecoveryRequest
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.contrib.auth.models import User
 from core.models import Department, ComplaintCategory
@@ -143,6 +143,13 @@ class PublicComplaintPagesTests(TestCase):
         self.assertNotContains(home, 'name="tracking_code"')
         self.assertContains(home, 'action="/#tracking"')
         self.assertNotContains(self.client.get('/complaints/submit/'), '<select')
+
+    def test_home_tracking_displays_current_status(self):
+        complaint = Complaint.objects.create(reference='YBC-2026-900003', title='إنارة', description='تفاصيل', tracking_hash='unused', status='assigned')
+        ComplaintStatusHistory.objects.create(complaint=complaint, status='assigned', public_message='تمت الإحالة إلى القسم المختص')
+        response = self.client.get('/', {'reference': complaint.reference})
+        self.assertContains(response, 'تمت الإحالة')
+        self.assertContains(response, complaint.reference)
 
     def test_existing_complaint_tracks_by_reference_without_exposing_details(self):
         complaint = Complaint.objects.create(

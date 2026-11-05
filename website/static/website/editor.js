@@ -11,6 +11,7 @@
       const textarea = wrapper.querySelector('textarea');
       const feedback = wrapper.querySelector('.editor-feedback');
       const fileInput = wrapper.querySelector('.editor-image-file');
+      const replaceButton = wrapper.querySelector('.editor-replace-image');
       const form = wrapper.closest('form');
       const editor = new Quill(wrapper.querySelector('.editor-surface'), {
         theme: 'snow',
@@ -40,6 +41,19 @@
         }
       });
       let selection = null;
+      let replacingImage = false;
+      editor.root.addEventListener('click', function (event) {
+        if (event.target && event.target.tagName === 'IMG') {
+          const blot = Quill.find(event.target);
+          selection = blot ? {index: editor.getIndex(blot)} : null;
+          replacingImage = Boolean(selection);
+          replaceButton.hidden = !replacingImage;
+          feedback.textContent = replacingImage ? 'تم تحديد الصورة. يمكنك استبدالها بصورة جديدة.' : '';
+        }
+      });
+      replaceButton.addEventListener('click', function () {
+        if (replacingImage) fileInput.click();
+      });
       editor.getModule('toolbar').addHandler('image', function () {
         selection = editor.getSelection(true);
         fileInput.click();
@@ -62,9 +76,12 @@
           const result = await response.json();
           if (!response.ok) throw new Error(result.error || 'تعذر رفع الصورة.');
           const index = Math.min(selection ? selection.index : editor.getLength() - 1, editor.getLength() - 1);
+          if (replacingImage) editor.deleteText(index, 1, 'user');
           editor.insertEmbed(index, 'image', result.url, 'user');
           editor.setSelection(index + 1);
-          feedback.textContent = 'تم إدراج الصورة. احفظ الصفحة لتثبيت التغييرات.';
+          feedback.textContent = replacingImage ? 'تم استبدال الصورة. احفظ الصفحة لتثبيت التغييرات.' : 'تم إدراج الصورة. احفظ الصفحة لتثبيت التغييرات.';
+          replacingImage = false;
+          replaceButton.hidden = true;
         } catch (error) {
           feedback.textContent = error.message || 'تعذر الاتصال بالخادم. حاول مجدداً.';
         } finally {
