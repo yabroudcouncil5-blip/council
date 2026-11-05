@@ -35,6 +35,9 @@ class ComplaintStatusHistory(models.Model):
     actor = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, verbose_name='الموظف')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='تاريخ الإنشاء')
 
+    def __str__(self):
+        return f'{self.complaint.reference} · {self.status}'
+
 class ComplaintAssignment(models.Model):
     class Meta:
         verbose_name = 'إحالة'

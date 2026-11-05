@@ -177,6 +177,21 @@ html[dir="rtl"] #content .field-row:has(input[type="checkbox"]) label { margin-i
 #content .dashboard-action-review strong, #content .dashboard-action-review span { display: block; }
 #content .dashboard-action-review span { margin-top: 4px; color: var(--dashboard-muted); font-size: 12px; }
 #content .dashboard-action-review p { margin: 8px 0 0; }
+
+/* Complaint details: compact, readable workflow cards. */
+#content form .module h2, #content .inline-group h2 { padding: 16px 22px; border-radius: 12px 12px 0 0; background: var(--dashboard-subtle); font-size: 16px; }
+#content .aligned .form-row { padding: 14px 20px; border-bottom: 1px solid var(--dashboard-border); }
+#content .aligned .form-row:last-child { border-bottom: 0; }
+#content .aligned .form-row > div { min-width: 0; }
+#content .aligned .form-row label { display: block; margin-bottom: 7px; font-weight: 700; color: var(--dashboard-ink); }
+#content .aligned .form-row input, #content .aligned .form-row textarea, #content .aligned .form-row select { width: 100%; max-width: none; min-height: 44px; border-radius: 9px; }
+#content .inline-group { margin-top: 24px; overflow: hidden; border: 1px solid var(--dashboard-border); border-radius: 12px; background: var(--dashboard-surface); }
+#content .inline-group .tabular tr.form-row { border-bottom: 1px solid var(--dashboard-border); }
+#content .inline-group .tabular td, #content .inline-group .tabular th { padding: 12px 14px; vertical-align: top; }
+#content .inline-group .tabular td input, #content .inline-group .tabular td select, #content .inline-group .tabular td textarea { min-height: 42px; border-radius: 8px; }
+#content .inline-group .tabular td textarea { min-height: 92px; }
+#content .field-status select, #content .field-decision select, #content .field-visibility select { font-weight: 700; }
+#content .field-status, #content .field-decision { min-width: 180px; }
 html[dir="rtl"] #content table th,
 html[dir="rtl"] #content table td { text-align: start; vertical-align: middle; }
 #result_list .action-checkbox,

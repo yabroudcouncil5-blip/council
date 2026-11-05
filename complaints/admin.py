@@ -294,6 +294,15 @@ class AssignmentForm(forms.ModelForm):
 
 @admin.register(ComplaintAssignment)
 class AssignmentAdmin(CouncilAdmin):
+    # Assignments are managed from the complaint detail page. Keep the
+    # model registered for existing links and data integrity, but remove the
+    # confusing standalone page from the admin navigation.
+    def get_model_perms(self, request):
+        return {}
+
+    def has_module_permission(self, request):
+        return False
+
     form = AssignmentForm
     list_display = ('complaint', 'department', 'officer', 'status', 'priority', 'due_at')
     list_filter = ('status', 'priority', 'department')
