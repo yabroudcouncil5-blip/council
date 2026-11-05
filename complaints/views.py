@@ -1,4 +1,4 @@
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 
 # Create your views here.
 import secrets
@@ -91,7 +91,7 @@ def assign_complaint(request):
     from core.models import Department
     from .models import ComplaintAssignment, InternalNotification
     complaint=Complaint.objects.get(pk=request.POST['complaint_id']); department=Department.objects.get(pk=request.POST['department_id'])
-    assignment=ComplaintAssignment.objects.create(complaint=complaint, department=department, officer_id=request.POST.get('officer_id') or None, priority=request.POST.get('priority','medium'))
+    assignment=ComplaintAssignment.objects.create(complaint=complaint, department=department, officer=None, priority=request.POST.get('priority','medium'))
     complaint.status='assigned'; complaint.save(update_fields=['status','updated_at'])
     ComplaintStatusHistory.objects.create(complaint=complaint, status='assigned', public_message=f'تمت إحالة الشكوى إلى قسم {department.name}')
     if assignment.officer_id: InternalNotification.objects.create(user_id=assignment.officer_id, complaint=complaint, message=f'تم إسناد الشكوى {complaint.reference} إليك')
@@ -145,6 +145,35 @@ def public_resolutions(request):
     from .models import ComplaintPublication
     rows=ComplaintPublication.objects.filter(approved=True, visibility='public', complaint__status='completed').select_related('complaint')
     return JsonResponse({'results':[{'reference':p.complaint.reference,'title':p.complaint.title,'summary':p.summary,'published_at':p.published_at.isoformat() if p.published_at else None} for p in rows]})
+
+@login_required
+def complaint_workflow(request):
+    """Single list/detail workspace for reviewers and super admins."""
+    if not request.user.is_staff:
+        return JsonResponse({'error': 'غير مصرح'}, status=403)
+    from core.models import Department
+    from .models import ComplaintAssignment, ComplaintReview, ComplaintPublication
+    if request.method == 'POST':
+        complaint = Complaint.objects.get(pk=request.POST['complaint_id'])
+        action = request.POST.get('action')
+        if action == 'assign':
+            department = Department.objects.get(pk=request.POST['department_id'])
+            # Routing is department-level; the department manager assigns the work internally.
+            ComplaintAssignment.objects.create(complaint=complaint, department=department, officer=None)
+            complaint.status = 'assigned'; complaint.save(update_fields=['status', 'updated_at'])
+        elif action in {'approved', 'returned', 'closed'}:
+            assignment = complaint.assignments.order_by('-assigned_at').first()
+            if assignment and action == 'approved': assignment.status = 'approved'; assignment.save(update_fields=['status'])
+            if assignment and action == 'returned': assignment.status = 'returned'; assignment.save(update_fields=['status'])
+            ComplaintReview.objects.create(complaint=complaint, assignment=assignment, reviewer=request.user, decision=action, reason=request.POST.get('reason',''))
+            complaint.status = 'assigned' if action == 'returned' else ('completed' if action in {'approved','closed'} else complaint.status)
+            complaint.save(update_fields=['status', 'updated_at'])
+        elif action == 'publish':
+            ComplaintPublication.objects.update_or_create(complaint=complaint, defaults={'summary': request.POST.get('summary',''), 'visibility': 'tracked', 'approved': True, 'approved_by': request.user})
+        return redirect(f'/staff/complaints/?complaint={complaint.pk}')
+    complaints = Complaint.objects.order_by('-updated_at')
+    selected = complaints.filter(pk=request.GET.get('complaint')).first() if request.GET.get('complaint') else complaints.first()
+    return render(request, 'staff/complaints.html', {'complaints': complaints, 'selected': selected, 'departments': Department.objects.filter(active=True), 'status_choices': Complaint.STATUS})
 
 @login_required
 def dashboard_report(request):

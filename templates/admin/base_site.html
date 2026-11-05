@@ -4,4 +4,16 @@
 {{ block.super }}
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap">
 <link rel="stylesheet" href="{% static 'core/dashboard.css' %}">
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  document.querySelectorAll('[placeholder*="Search apps"], [aria-label*="Filter navigation"]').forEach(function (el) {
+    el.setAttribute('placeholder', 'بحث في الأقسام والنماذج...');
+    el.setAttribute('aria-label', 'تصفية عناصر التنقل');
+  });
+  document.querySelectorAll('body *').forEach(function (el) {
+    if (el.childNodes.length === 1 && /Search apps and models\.\.\./i.test(el.textContent)) el.textContent = 'بحث في الأقسام والنماذج...';
+    if (el.childNodes.length === 1 && el.textContent.trim() === 'Log out') el.textContent = 'تسجيل الخروج';
+  });
+});
+</script>
 {% endblock %}
