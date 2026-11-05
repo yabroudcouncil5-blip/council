@@ -1,4 +1,9 @@
-@import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap');html[dir="rtl"] body{font-family:'Tajawal',Tahoma,Arial,sans-serif;line-height:1.8}
+@import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap');
+html[dir="rtl"] body,html[dir="rtl"] button,html[dir="rtl"] input,html[dir="rtl"] textarea,html[dir="rtl"] select{font-family:'Tajawal',Tahoma,Arial,sans-serif!important;line-height:1.8}
+/* Keep the account menu above the header and give it room to open. */
+html[dir="rtl"] header,html[dir="rtl"] [data-headlessui-state]{position:relative;z-index:60}
+html[dir="rtl"] header nav{z-index:100!important}
+html[dir="rtl"] #nav-filter{font-family:'Tajawal',Tahoma,Arial,sans-serif!important}
 html[dir="rtl"] input,html[dir="rtl"] textarea,html[dir="rtl"] select,html[dir="rtl"] button{font-family:inherit}
 /* Keep every header and value on the same edge, including numeric/boolean columns. */
 html[dir="rtl"] #content table{direction:rtl}

@@ -1,0 +1,21 @@
+{% load i18n %}
+{% if sidebar_show_search %}
+    {% if sidebar_command_search %}
+        <div class="mb-2.5 mx-3 relative" x-on:click="$dispatch('opencommand')">
+            <div class="bg-white border border-base-200 cursor-pointer flex flex-row items-center px-3 rounded-default relative shadow-xs w-full focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-primary-600 dark:bg-base-900 dark:border-base-700">
+                <span class="material-symbols-outlined md-18 text-base-400">manage_search</span>
+                <div class="grow font-medium min-w-0 overflow-hidden p-2 text-font-subtle-light truncate focus:outline-hidden dark:bg-base-900 dark:text-font-subtle-dark">بحث في الأقسام والنماذج...</div>
+                {% if 'Macintosh' in request.META.HTTP_USER_AGENT %}{% include "unfold/helpers/shortcut.html" with shortcut="⌘K" %}{% else %}{% include "unfold/helpers/shortcut.html" with shortcut="Ctrl + K" %}{% endif %}
+            </div>
+        </div>
+    {% else %}
+        <div class="mb-2.5 mx-3 relative" x-data="searchDropdown()" x-on:keydown.window="applyShortcut($event)" x-on:click.outside="openSearchResults = false">
+            <div class="bg-white border border-base-200 flex flex-row items-center px-3 rounded-default relative shadow-xs w-full focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-primary-600 dark:bg-base-900 dark:border-base-700">
+                <span class="material-symbols-outlined md-18 text-base-400">manage_search</span>
+                <input type="search" id="nav-filter" name="s" x-ref="searchInput" x-on:focus="openSearchResults = true; currentIndex = 0" x-on:keydown="openSearchResults = true;" x-on:keydown.enter.prevent="selectItem()" hx-get="{% url "admin:search" %}" hx-trigger="keyup changed delay:500ms" hx-target="#search-results" class="grow font-medium min-w-0 overflow-hidden p-2 truncate focus:outline-hidden" placeholder="بحث في الأقسام والنماذج..." aria-label="تصفية عناصر التنقل">
+                {% include "unfold/helpers/shortcut.html" with shortcut="t" %}
+            </div>
+            <div id="search-results" x-show="openSearchResults"></div>
+        </div>
+    {% endif %}
+{% endif %}
