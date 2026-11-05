@@ -6,7 +6,7 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
-from .models import Complaint
+from .models import Complaint, ComplaintStatusHistory
 from django.core.validators import validate_email
 from website.views import ctx
 from .tracking import tracking_result, tracking_context
@@ -93,6 +93,7 @@ def assign_complaint(request):
     complaint=Complaint.objects.get(pk=request.POST['complaint_id']); department=Department.objects.get(pk=request.POST['department_id'])
     assignment=ComplaintAssignment.objects.create(complaint=complaint, department=department, officer_id=request.POST.get('officer_id') or None, priority=request.POST.get('priority','medium'))
     complaint.status='assigned'; complaint.save(update_fields=['status','updated_at'])
+    ComplaintStatusHistory.objects.create(complaint=complaint, status='assigned', public_message=f'تمت إحالة الشكوى إلى قسم {department.name}')
     if assignment.officer_id: InternalNotification.objects.create(user_id=assignment.officer_id, complaint=complaint, message=f'تم إسناد الشكوى {complaint.reference} إليك')
     return JsonResponse({'assignment_id':assignment.id,'status':assignment.status}, status=201)
 
@@ -100,12 +101,15 @@ def assign_complaint(request):
 @require_http_methods(['POST'])
 @transaction.atomic
 def action_submission(request):
-    from .models import AssignmentAction, ComplaintAssignment
+    from .models import AssignmentAction, ComplaintAssignment, ComplaintStatusHistory, InternalNotification
     assignment=ComplaintAssignment.objects.select_related('complaint').get(pk=request.POST['assignment_id'])
     if assignment.officer_id != request.user.id and not request.user.is_superuser and not request.user.groups.filter(name='Department Manager').exists(): return JsonResponse({'error':'غير مصرح'}, status=403)
     action=AssignmentAction.objects.create(assignment=assignment, actor=request.user, internal_action=request.POST.get('internal_action',''), public_message=request.POST.get('public_message',''))
     assignment.status='submitted'; assignment.save(update_fields=['status'])
     assignment.complaint.status='final_review'; assignment.complaint.save(update_fields=['status','updated_at'])
+    ComplaintStatusHistory.objects.create(complaint=assignment.complaint, status='final_review', public_message=action.public_message or 'تم إرسال المعالجة للمراجعة')
+    supervisors = request.user.__class__.objects.filter(is_active=True, is_staff=True, is_superuser=True)
+    for supervisor in supervisors: InternalNotification.objects.create(user=supervisor, complaint=assignment.complaint, message=f'الشكوى {assignment.complaint.reference} بانتظار المراجعة')
     return JsonResponse({'action_id':action.id,'status':assignment.status}, status=201)
 
 @login_required
@@ -113,22 +117,28 @@ def action_submission(request):
 @transaction.atomic
 def final_review(request):
     if not request.user.is_staff: return JsonResponse({'error':'غير مصرح'}, status=403)
-    from .models import ComplaintAssignment, ComplaintReview, ComplaintPublication
+    from .models import ComplaintAssignment, ComplaintReview, ComplaintPublication, ComplaintStatusHistory, InternalNotification
     complaint=Complaint.objects.get(pk=request.POST['complaint_id']); decision=request.POST['decision']; assignment=ComplaintAssignment.objects.filter(complaint=complaint, pk=request.POST.get('assignment_id')).first() if request.POST.get('assignment_id') else None
     if assignment and decision == 'approved': assignment.status='approved'; assignment.save(update_fields=['status'])
     if assignment and decision == 'returned': assignment.status='returned'; assignment.save(update_fields=['status'])
     ComplaintReview.objects.create(complaint=complaint, assignment=assignment, reviewer=request.user, decision=decision, reason=request.POST.get('reason',''))
+    if decision == 'returned':
+        complaint.status='assigned'; complaint.save(update_fields=['status','updated_at'])
+        ComplaintStatusHistory.objects.create(complaint=complaint, status='assigned', public_message=request.POST.get('reason','أعيدت للقسم لاستكمال المعالجة'))
+        if assignment and assignment.officer_id: InternalNotification.objects.create(user=assignment.officer, complaint=complaint, message=f'أعيدت الشكوى {complaint.reference} لاستكمال الإجراء')
     if decision == 'closed':
         if complaint.assignments.exclude(status__in=['approved','cancelled']).exists(): return JsonResponse({'error':'لا يمكن إغلاق الشكوى قبل اعتماد جميع المهام'}, status=409)
         complaint.status='completed'; complaint.save(update_fields=['status','updated_at'])
+        ComplaintStatusHistory.objects.create(complaint=complaint, status='completed', public_message='تم اعتماد المعالجة وإغلاق الشكوى')
     return JsonResponse({'status':complaint.status})
 
 @login_required
 @require_http_methods(['POST'])
 def publish_resolution(request):
     if not request.user.is_staff: return JsonResponse({'error':'غير مصرح'}, status=403)
-    from .models import ComplaintPublication
+    from .models import ComplaintPublication, ComplaintStatusHistory
     complaint=Complaint.objects.get(pk=request.POST['complaint_id']); publication, _=ComplaintPublication.objects.update_or_create(complaint=complaint, defaults={'summary':request.POST.get('summary',''),'visibility':request.POST.get('visibility','private'),'approved':True,'approved_by':request.user})
+    ComplaintStatusHistory.objects.create(complaint=complaint, status=complaint.status, public_message='تم نشر نتيجة المعالجة للمواطن')
     return JsonResponse({'publication_id':publication.id,'approved':publication.approved}, status=201)
 
 def public_resolutions(request):
