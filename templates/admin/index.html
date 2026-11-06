@@ -1,17 +1,23 @@
 {% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block extrastyle %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'core/overview.css' %}">
+{% endblock %}
 
 {% block content %}
 <section class="dashboard-overview" aria-label="ملخص لوحة الإدارة">
     <div class="dashboard-page-heading">
         <div>
-            <h2>متابعة أعمال البلدية</h2>
-            <p>الشكاوى والتنبيهات التي تحتاج إلى متابعة.</p>
+            <h2>نظرة عامة</h2>
+            <p>ملخص الشكاوى وأعمال الأقسام التي تحتاج إلى متابعة.</p>
         </div>
         <time class="dashboard-updated" datetime="{{ dashboard_date|date:'c' }}">آخر تحديث: {{ dashboard_date|date:'Y/m/d H:i' }}</time>
     </div>
 
     <nav class="dashboard-actions" aria-label="إجراءات سريعة">
-        {% if can_view_complaints %}<a class="dashboard-action primary" href="{% url 'admin:complaints_complaint_changelist' %}">متابعة الشكاوى</a>{% endif %}
+        {% if can_view_complaints %}<a class="dashboard-action primary" href="{% url 'admin:complaints_complaint_changelist' %}">فتح قائمة الشكاوى <span aria-hidden="true">←</span></a>{% endif %}
         {% if can_view_complaints or can_view_assignments %}<a class="dashboard-action" href="/staff/reports/">التقارير والمتابعة</a>{% endif %}
         {% if perms.website.add_newsarticle %}<a class="dashboard-action" href="{% url 'admin:website_newsarticle_add' %}">إضافة خبر أو إعلان</a>{% endif %}
         <a class="dashboard-action" href="/">عرض الموقع العام</a>
@@ -23,9 +29,17 @@
         <a class="dashboard-metric" href="{{ metric.link }}">
             <span class="dashboard-metric-label">{{ metric.title }}</span>
             <strong class="dashboard-metric-value">{{ metric.value }}</strong>
+            <span class="dashboard-metric-arrow" aria-hidden="true">←</span>
         </a>
         {% endfor %}
     </section>
+    {% endif %}
+
+    {% if overdue_count %}
+    <div class="dashboard-followup-notice" role="note">
+        <span><strong>{{ overdue_count }}</strong> إحالة تجاوزت الموعد المحدد وتحتاج إلى متابعة.</span>
+        <a href="/staff/reports/#overdue-assignments">عرض الإحالات المتأخرة ←</a>
+    </div>
     {% endif %}
 
     <div class="dashboard-columns">
@@ -43,7 +57,7 @@
                             {% for item in recent_complaints %}
                             <tr>
                                 <td><a class="dashboard-reference" href="{% url 'admin:complaints_complaint_change' item.pk %}"><bdi>{{ item.reference }}</bdi></a></td>
-                                <td>{{ item.title }}<small class="dashboard-subtext">{{ item.category|default:'غير مصنفة' }}</small></td>
+                                <td><a class="dashboard-subject" href="{% url 'admin:complaints_complaint_change' item.pk %}">{{ item.title }}</a><small class="dashboard-subtext">{{ item.category|default:'غير مصنفة' }}</small></td>
                                 <td><span class="dashboard-status">{{ item.get_status_display }}</span></td>
                                 <td><time datetime="{{ item.submitted_at|date:'c' }}">{{ item.submitted_at|date:'Y/m/d' }}</time></td>
                             </tr>
@@ -60,7 +74,7 @@
             {% if notifications %}
             <ul class="dashboard-notifications">
                 {% for item in notifications %}
-                <li>{{ item.message }}<time datetime="{{ item.created_at|date:'c' }}">{{ item.created_at|date:'Y/m/d H:i' }}</time></li>
+                <li>{% if item.complaint_id and can_view_complaints %}<a href="{% url 'admin:complaints_complaint_change' item.complaint_id %}">{{ item.message }}</a>{% else %}{{ item.message }}{% endif %}<time datetime="{{ item.created_at|date:'c' }}">{{ item.created_at|date:'Y/m/d H:i' }}</time></li>
                 {% endfor %}
             </ul>
             {% else %}<p class="dashboard-empty">لا توجد تنبيهات جديدة.</p>{% endif %}

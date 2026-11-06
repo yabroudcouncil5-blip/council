@@ -1,0 +1,44 @@
+{% load i18n %}
+<div class="js-inline-admin-formset inline-group dashboard-inline-panel dashboard-inline-{{ inline_admin_formset.opts.opts.model_name }}" id="{{ inline_admin_formset.formset.prefix }}-group" data-inline-type="stacked" data-inline-formset="{{ inline_admin_formset.inline_formset_data }}" x-show="activeTab == 'general'">
+    <h2 id="{{ inline_admin_formset.formset.prefix }}-heading">{{ inline_admin_formset.opts.verbose_name_plural }}</h2>
+    {{ inline_admin_formset.formset.management_form }}
+    {{ inline_admin_formset.formset.non_form_errors }}
+    <div class="dashboard-inline-records" aria-labelledby="{{ inline_admin_formset.formset.prefix }}-heading">
+        {% for inline_admin_form in inline_admin_formset %}
+            <div class="inline-related dashboard-inline-record{% if inline_admin_form.original %} has_original{% endif %}{% if forloop.last and inline_admin_formset.has_add_permission %} empty-form last-related{% endif %}" id="{{ inline_admin_formset.formset.prefix }}-{% if forloop.last and inline_admin_formset.has_add_permission %}empty{% else %}{{ forloop.counter0 }}{% endif %}">
+                <h3 class="dashboard-inline-record-heading">
+                    <span class="inline_label">{{ inline_admin_formset.opts.verbose_name }}{% if not inline_admin_form.original %} جديد{% endif %}</span>
+                    {% if inline_admin_form.original %}
+                        <span class="dashboard-inline-record-summary">
+                            {% if inline_admin_form.original.department %}{{ inline_admin_form.original.department.name }}
+                            {% elif inline_admin_form.original.decision %}{{ inline_admin_form.original.get_decision_display }}
+                            {% elif inline_admin_form.original.original_name %}{{ inline_admin_form.original.original_name }}{% endif %}
+                        </span>
+                    {% endif %}
+                </h3>
+                {{ inline_admin_form.form.non_field_errors }}
+                <div class="dashboard-inline-fields">
+                    {% for fieldset in inline_admin_form %}{% for line in fieldset %}{% for field in line %}
+                        {% if not field.is_readonly and field.field.is_hidden %}
+                            {{ field.field }}
+                        {% else %}
+                            <div class="dashboard-inline-field field-{{ field.field.name }}{% if field.is_checkbox %} dashboard-inline-checkbox{% endif %}{% if field.errors %} errors{% endif %}">
+                                {% if field.is_readonly %}
+                                    <div class="dashboard-inline-label">{{ field.field.label }}</div>
+                                    <div class="dashboard-inline-value">{{ field.contents }}</div>
+                                {% else %}
+                                    <label class="dashboard-inline-label" for="{{ field.field.id_for_label }}">{{ field.field.label }}{% if field.field.field.required %}<span class="dashboard-required" aria-hidden="true"> *</span>{% endif %}</label>
+                                    {{ field.field }}
+                                    {{ field.field.errors }}
+                                    {% if field.field.help_text %}<p class="help">{{ field.field.help_text|safe }}</p>{% endif %}
+                                {% endif %}
+                            </div>
+                        {% endif %}
+                    {% endfor %}{% endfor %}{% endfor %}
+                </div>
+                {% if inline_admin_form.needs_explicit_pk_field %}{{ inline_admin_form.pk_field.field }}{% endif %}
+                {% if inline_admin_form.fk_field %}{{ inline_admin_form.fk_field.field }}{% endif %}
+            </div>
+        {% endfor %}
+    </div>
+</div>

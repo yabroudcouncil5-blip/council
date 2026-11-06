@@ -1,0 +1,11 @@
+{% load unfold %}
+<div class="dashboard-field dashboard-standalone-field{% if field.errors %} errors{% endif %}">
+    {% if field.field.widget.input_type == "checkbox" and field.field.widget|class_name != "UnfoldAdminCheckboxSelectMultiple" %}
+        <div class="dashboard-checkbox-field">{{ field }}<div>{% include "unfold/helpers/form_label.html" with field=field %}</div></div>
+    {% else %}
+        <div class="dashboard-field-label">{% include "unfold/helpers/form_label.html" with field=field %}</div>
+        <div class="dashboard-field-value">{{ field }}</div>
+    {% endif %}
+    {% if field.errors %}<div class="dashboard-field-errors" role="alert">{{ field.errors }}</div>{% endif %}
+    {% if field.help_text %}<div class="dashboard-help">{{ field.help_text|safe }}</div>{% endif %}
+</div>

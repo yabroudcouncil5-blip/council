@@ -32,7 +32,7 @@ class CompressedImageForm(forms.ModelForm):
 
 
 @admin.register(ContentImage)
-class ContentImageAdmin(admin.ModelAdmin):
+class ContentImageAdmin(ModelAdmin):
     form = CompressedImageForm
     list_display = ('preview', 'image', 'created_at')
     readonly_fields = ('current_preview', 'created_at')
@@ -57,8 +57,13 @@ class NewsArticleAdmin(ModelAdmin):
     readonly_fields = ('created_at',)
     fieldsets = (
         ('محتوى الخبر', {'fields': ('title', 'body', 'featured_image')}),
-        ('النشر', {'fields': ('published', 'published_at', 'created_at')}),
+        ('النشر', {'fields': (('published', 'published_at'), 'created_at')}),
     )
+
+    def formfield_for_dbfield(self, db_field, request, **kwargs):
+        if db_field.name == 'title':
+            kwargs['label'] = 'عنوان الخبر'
+        return super().formfield_for_dbfield(db_field, request, **kwargs)
 
 @admin.register(Page)
 class PageAdmin(ModelAdmin):
@@ -67,7 +72,7 @@ class PageAdmin(ModelAdmin):
     list_filter = ('published',)
     search_fields = ('title', 'slug', 'body')
     prepopulated_fields = {'slug': ('title',)}
-    fieldsets = (('محتوى الصفحة', {'fields': ('title', 'slug', 'body')}), ('إعدادات النشر', {'fields': ('published',)}))
+    fieldsets = (('محتوى الصفحة', {'fields': (('title', 'slug'), 'body')}), ('إعدادات النشر', {'fields': ('published',)}))
 
     @admin.display(description='عرض الصفحة')
     def view_page(self, obj):
@@ -79,6 +84,7 @@ class DepartmentPageAdmin(ModelAdmin):
     list_display = ('name', 'published', 'contact')
     list_filter = ('published',)
     search_fields = ('name', 'description')
+    fieldsets = (('محتوى القسم', {'fields': (('name', 'contact'), 'description', 'published')}),)
 
 @admin.register(ExecutiveMember)
 class ExecutiveMemberAdmin(ModelAdmin):
@@ -87,6 +93,6 @@ class ExecutiveMemberAdmin(ModelAdmin):
     search_fields = ('name', 'role', 'bio')
     list_editable = ('display_order', 'active')
     fieldsets = (
-        ('بيانات العضو', {'fields': ('name', 'role', 'bio', 'photo')}),
-        ('العرض', {'fields': ('display_order', 'active')}),
+        ('بيانات العضو', {'fields': (('name', 'role'), 'bio', 'photo')}),
+        ('العرض', {'fields': (('display_order', 'active'),)}),
     )

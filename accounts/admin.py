@@ -1,10 +1,11 @@
+from django import forms
 from django.contrib import admin
-from django.contrib.auth.admin import UserAdmin as BaseUserAdmin, GroupAdmin as BaseGroupAdmin
-from django.contrib.auth.models import User, Group
+from django.contrib.auth.admin import GroupAdmin as BaseGroupAdmin, UserAdmin as BaseUserAdmin
+from django.contrib.auth.models import Group, User
 from unfold.admin import ModelAdmin
 from unfold.forms import AdminPasswordChangeForm, UserChangeForm, UserCreationForm
 from unfold.widgets import UnfoldAdminSelectWidget
-from django import forms
+
 from core.models import Department
 
 admin.site.unregister(User)
@@ -18,40 +19,108 @@ ROLE_CHOICES = (
     ('superadmin', 'مشرف عام'),
 )
 
+
+def role_field():
+    return forms.ChoiceField(
+        label='الدور الوظيفي', choices=ROLE_CHOICES,
+        widget=UnfoldAdminSelectWidget,
+        help_text='تُضبط صلاحيات الحساب تلقائياً حسب الدور.',
+    )
+
+
+def departments_field():
+    return forms.ModelMultipleChoiceField(
+        label='الأقسام', queryset=Department.objects.filter(active=True).order_by('name'),
+        required=False,
+        widget=forms.CheckboxSelectMultiple,
+        help_text='حدد القسم أو الأقسام التي يعمل فيها الموظف.',
+    )
+
+
+class StaffPasswordWidget(forms.Widget):
+    """Offer the secure password form without exposing hash metadata in the UI."""
+
+    template_name = 'accounts/widgets/password_summary.html'
+    read_only = True
+
+    def __init__(self, can_change_password=True, **kwargs):
+        super().__init__(**kwargs)
+        self.can_change_password = can_change_password
+
+    def get_context(self, name, value, attrs):
+        context = super().get_context(name, None, attrs)
+        context['can_change_password'] = self.can_change_password
+        return context
+
+    def id_for_label(self, id_):
+        return None
+
+
 class RoleMixin:
-    role = forms.ChoiceField(label='الدور الوظيفي', choices=ROLE_CHOICES, widget=UnfoldAdminSelectWidget, help_text='اختر دوراً واحداً؛ ستُضبط الصلاحيات تلقائياً.')
-    departments = forms.ModelMultipleChoiceField(label='الأقسام', queryset=Department.objects.filter(active=True).order_by('name'), required=False, widget=forms.CheckboxSelectMultiple, help_text='حدد الأقسام التي يعمل فيها الموظف.')
-
-    def save(self, commit=True):
-        user = super().save(commit)
-        if commit:
-            self.apply_role(user)
-            user.council_departments.set(self.cleaned_data.get('departments', []))
-        return user
-
-    def apply_role(self, user):
-        role = self.cleaned_data.get('role', 'staff')
-        user.is_staff = True
-        user.is_superuser = role == 'superadmin'
-        user.save(update_fields=['is_staff', 'is_superuser'])
-        group_names = {'staff': 'Department Officer', 'supervisor': 'Department Manager', 'reviewer': 'Complaint Reviewer'}
-        user.groups.clear()
-        if role in group_names:
-            group, _ = Group.objects.get_or_create(name=group_names[role])
-            user.groups.add(group)
-
-class SimpleUserCreationForm(RoleMixin, UserCreationForm):
-    role = forms.ChoiceField(label='الدور الوظيفي', choices=ROLE_CHOICES, help_text='اختر دوراً واحداً فقط؛ سيتم ضبط الصلاحيات تلقائياً.')
-
-class SimpleUserChangeForm(RoleMixin, UserChangeForm):
-    role = forms.ChoiceField(label='الدور الوظيفي', choices=ROLE_CHOICES, help_text='اختر دوراً واحداً فقط؛ سيتم ضبط الصلاحيات تلقائياً.')
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        if self.instance.is_superuser: self.initial['role'] = 'superadmin'
-        elif self.instance.groups.filter(name='Complaint Reviewer').exists(): self.initial['role'] = 'reviewer'
-        elif self.instance.groups.filter(name='Department Manager').exists(): self.initial['role'] = 'supervisor'
-        else: self.initial['role'] = 'staff'
+        for name in ('username', 'email', 'password1', 'password2'):
+            if name in self.fields:
+                self.fields[name].widget.attrs['dir'] = 'ltr'
+        if 'is_active' in self.fields:
+            self.fields['is_active'].widget = forms.CheckboxInput()
+            self.fields['is_active'].label = 'الحساب نشط'
+            self.fields['is_active'].help_text = 'أوقف هذا الخيار لمنع الدخول دون حذف الحساب.'
+        if 'username' in self.fields:
+            self.fields['username'].help_text = 'اسم الدخول إلى لوحة الإدارة.'
+
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        user.is_staff = True
+        user.is_superuser = self.cleaned_data.get('role') == 'superadmin'
+        if commit:
+            user.save()
+            self._save_m2m()
+        return user
+
+    def _save_m2m(self):
+        # Django admin saves the user with commit=False, then calls save_m2m.
+        # Apply the simple role and department choices at that same save point.
+        super()._save_m2m()
+        group_names = {
+            'staff': 'Department Officer',
+            'supervisor': 'Department Manager',
+            'reviewer': 'Complaint Reviewer',
+        }
+        role = self.cleaned_data.get('role', 'staff')
+        groups = []
+        if role in group_names:
+            group, _ = Group.objects.get_or_create(name=group_names[role])
+            groups.append(group)
+        self.instance.groups.set(groups)
+        self.instance.council_departments.set(self.cleaned_data.get('departments', []))
+
+
+class SimpleUserCreationForm(RoleMixin, UserCreationForm):
+    role = role_field()
+    departments = departments_field()
+
+
+class SimpleUserChangeForm(RoleMixin, UserChangeForm):
+    role = role_field()
+    departments = departments_field()
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['password'].widget = StaffPasswordWidget(
+            can_change_password=getattr(self, 'staff_can_change_password', True),
+        )
+        self.fields['password'].help_text = ''
+        if self.instance.is_superuser:
+            self.initial['role'] = 'superadmin'
+        elif self.instance.groups.filter(name='Complaint Reviewer').exists():
+            self.initial['role'] = 'reviewer'
+        elif self.instance.groups.filter(name='Department Manager').exists():
+            self.initial['role'] = 'supervisor'
+        else:
+            self.initial['role'] = 'staff'
         self.initial['departments'] = self.instance.council_departments.filter(active=True)
+
 
 @admin.register(User)
 class UserAdmin(BaseUserAdmin, ModelAdmin):
@@ -59,46 +128,37 @@ class UserAdmin(BaseUserAdmin, ModelAdmin):
     add_form = SimpleUserCreationForm
     change_password_form = AdminPasswordChangeForm
     fieldsets = (
-        (None, {'fields': ('username', 'password')}),
-        ('بيانات الموظف', {'fields': ('first_name', 'last_name', 'email', 'role', 'departments', 'is_active')}),
-        ('التواريخ', {'classes': ('collapse',), 'fields': ('last_login', 'date_joined')}),
+        ('بيانات الموظف', {'fields': (('first_name', 'last_name'), 'email')}),
+        ('الدخول إلى النظام', {'fields': (('username', 'password'),)}),
+        ('الدور والأقسام', {'fields': ('role', 'departments', 'is_active')}),
+        ('سجل الحساب', {'classes': ('collapse',), 'fields': (('last_login', 'date_joined'),)}),
     )
     add_fieldsets = (
-        (None, {'classes': ('wide',), 'fields': ('username', 'password1', 'password2', 'first_name', 'last_name', 'email', 'role', 'departments', 'is_active')}),
+        ('بيانات الموظف', {'fields': (('first_name', 'last_name'), 'email')}),
+        ('الدخول إلى النظام', {'fields': ('username', ('password1', 'password2'))}),
+        ('الدور والأقسام', {'fields': ('role', 'departments', 'is_active')}),
     )
     readonly_fields = ('last_login', 'date_joined')
 
     def get_form(self, request, obj=None, **kwargs):
-        # Django's ModelForm factory rejects non-model fields listed in
-        # fieldsets. Build the form without the virtual departments field,
-        # then add it back for the rendered admin form.
-        fieldsets = self.fieldsets
-        add_fieldsets = self.add_fieldsets
-        cleaned = tuple(
-            (title, {**options, 'fields': tuple(
-                field for field in options.get('fields', ()) if field != 'departments'
-            )}) for title, options in fieldsets
-        )
-        self.fieldsets = cleaned
-        self.add_fieldsets = tuple(
-            (title, {**options, 'fields': tuple(field for field in options.get('fields', ()) if field != 'departments')})
-            for title, options in add_fieldsets
-        )
-        if 'fields' in kwargs and kwargs['fields']:
-            kwargs['fields'] = tuple(field for field in kwargs['fields'] if field != 'departments')
-        try:
-            form = super().get_form(request, obj, **kwargs)
-        finally:
-            self.fieldsets = fieldsets
-            self.add_fieldsets = add_fieldsets
-        form.base_fields['departments'] = forms.ModelMultipleChoiceField(
-            label='الأقسام', queryset=Department.objects.filter(active=True).order_by('name'), required=False,
-            widget=forms.CheckboxSelectMultiple,
-            help_text='حدد الأقسام التي يعمل فيها الموظف.',
-        )
-        if obj:
-            form.base_fields['departments'].initial = obj.council_departments.filter(active=True)
+        form = super().get_form(request, obj, **kwargs)
+        form.staff_can_change_password = self.has_change_permission(request, obj)
         return form
+
+    @admin.display(description='الدور الوظيفي')
+    def role(self, obj):
+        if obj.is_superuser:
+            return dict(ROLE_CHOICES)['superadmin']
+        names = set(obj.groups.values_list('name', flat=True))
+        if 'Complaint Reviewer' in names:
+            return dict(ROLE_CHOICES)['reviewer']
+        if 'Department Manager' in names:
+            return dict(ROLE_CHOICES)['supervisor']
+        return dict(ROLE_CHOICES)['staff']
+
+    @admin.display(description='الأقسام')
+    def departments(self, obj):
+        return '، '.join(obj.council_departments.values_list('name', flat=True)) or 'لم يُحدد قسم'
 
 
 @admin.register(Group)

@@ -8,20 +8,25 @@ class ComplaintCategoryAdmin(SuperAdminReferenceDataMixin, SelectionOnlyRelatedF
     list_display = ('name', 'default_days', 'active')
     list_filter = ('active',)
     search_fields = ('name',)
+    fieldsets = (('بيانات التصنيف', {'fields': (('name', 'default_days'), 'active')}),)
 
 @admin.register(Department)
 class DepartmentAdmin(SuperAdminReferenceDataMixin, SelectionOnlyRelatedFieldsMixin, ModelAdmin):
     list_display = ('name', 'active')
     list_filter = ('active',)
     search_fields = ('name',)
-    filter_horizontal = ('members',)
+    autocomplete_fields = ('members',)
+    fieldsets = (
+        ('بيانات القسم', {'fields': ('name', 'description', 'active')}),
+        ('فريق القسم', {'fields': ('members',)}),
+    )
 
 @admin.register(CouncilSettings)
 class CouncilSettingsAdmin(ModelAdmin):
     list_display = ('name', 'phone', 'email', 'updated_at')
     fieldsets = (
         ('بيانات البلدية', {'fields': ('name', 'logo', 'description')}),
-        ('بيانات التواصل', {'fields': ('address', 'phone', 'email', 'facebook_url')}),
+        ('بيانات التواصل', {'fields': ('address', ('phone', 'email'), 'facebook_url')}),
     )
 
 @admin.register(AuditLog)

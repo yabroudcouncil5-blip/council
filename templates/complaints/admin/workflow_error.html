@@ -1,0 +1,6 @@
+{% extends 'admin/base_site.html' %}
+{% block content %}
+<p><a class="dashboard-action" href="{% url 'admin:complaints_complaint_change' workflow_complaint.pk %}">العودة إلى تفاصيل الشكوى ←</a></p>
+{% include 'complaints/admin/workflow_status.html' %}
+{% include 'complaints/admin/workflow_actions.html' %}
+{% endblock %}

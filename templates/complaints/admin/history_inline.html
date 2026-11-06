@@ -1,0 +1,30 @@
+{% load i18n %}
+<section class="inline-group dashboard-history-panel" id="{{ inline_admin_formset.formset.prefix }}-group" aria-labelledby="{{ inline_admin_formset.formset.prefix }}-heading" x-show="activeTab == 'general'">
+    <h2 id="{{ inline_admin_formset.formset.prefix }}-heading">{{ inline_admin_formset.opts.verbose_name_plural }}</h2>
+    {{ inline_admin_formset.formset.management_form }}
+    {{ inline_admin_formset.formset.non_form_errors }}
+    <div hidden>
+        {% for inline_admin_form in inline_admin_formset %}
+            {% if inline_admin_form.needs_explicit_pk_field %}{{ inline_admin_form.pk_field.field }}{% endif %}
+            {% if inline_admin_form.fk_field %}{{ inline_admin_form.fk_field.field }}{% endif %}
+        {% endfor %}
+    </div>
+    <div class="dashboard-table-scroll">
+        <table class="dashboard-history-table">
+            <thead><tr><th scope="col">المرحلة</th><th scope="col">التحديث للمواطن</th><th scope="col">بواسطة</th><th scope="col">التاريخ والوقت</th></tr></thead>
+            <tbody>
+                {% for inline_admin_form in inline_admin_formset %}
+                    {% if inline_admin_form.original %}
+                        <tr>
+                            {% for fieldset in inline_admin_form %}{% for line in fieldset %}{% for field in line %}
+                                <td class="field-{{ field.field.name }}">{{ field.contents }}</td>
+                            {% endfor %}{% endfor %}{% endfor %}
+                        </tr>
+                    {% endif %}
+                {% empty %}
+                    <tr><td colspan="4" class="dashboard-empty">لا توجد تحديثات مسجلة بعد.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>

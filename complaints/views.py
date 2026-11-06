@@ -1,4 +1,5 @@
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
+from django.core.exceptions import PermissionDenied
 
 # Create your views here.
 import secrets
@@ -26,7 +27,8 @@ def tracking_form(request):
     """Render the public complaint tracking form."""
     data = request.POST if request.method == 'POST' else request.GET
     context = {**ctx(), **tracking_context(data)}
-    response = render(request, 'complaints/track.html', context)
+    template = 'complaints/includes/tracking_result.html' if request.GET.get('partial') == '1' else 'complaints/track.html'
+    response = render(request, template, context)
     response['Cache-Control'] = 'no-store'
     return response
 
@@ -72,91 +74,165 @@ def recovery_request(request):
 @login_required
 def review_queue(request):
     if not request.user.is_staff: return JsonResponse({'error':'غير مصرح'}, status=403)
-    queryset=Complaint.objects.order_by('-submitted_at')
-    if request.user.groups.filter(name='Department Officer').exists(): queryset=queryset.filter(assignments__officer=request.user).distinct()
+    from .workflow import complaints_for
+    queryset = complaints_for(request.user).order_by('-submitted_at')
     return JsonResponse({'complaints': list(queryset.values('id','reference','title','status','submitted_at'))})
 
 @login_required
 def staff_dashboard(request):
     if not request.user.is_staff: return JsonResponse({'error':'غير مصرح'}, status=403)
+    from django.contrib import admin
+    from django.db.models import Q
     from .models import ComplaintAssignment, InternalNotification
-    assignments = ComplaintAssignment.objects.filter(officer=request.user).select_related('complaint','department')
-    return render(request, 'staff/dashboard.html', {'assignments': assignments, 'notifications': InternalNotification.objects.filter(user=request.user, read=False)[:10]})
+    assignments = ComplaintAssignment.objects.filter(
+        Q(officer=request.user) | Q(department__members=request.user)
+    ).select_related('complaint', 'department').distinct().order_by('-assigned_at')
+    return render(request, 'staff/dashboard.html', {
+        **admin.site.each_context(request), 'title': 'مهام القسم',
+        'assignments': assignments,
+        'notifications': InternalNotification.objects.filter(user=request.user, read=False)[:10],
+    })
 
 @login_required
 @require_http_methods(['POST'])
 @transaction.atomic
 def assign_complaint(request):
-    if not request.user.is_staff: return JsonResponse({'error':'غير مصرح'}, status=403)
-    from core.models import Department
-    from .models import ComplaintAssignment, InternalNotification
-    complaint=Complaint.objects.get(pk=request.POST['complaint_id']); department=Department.objects.get(pk=request.POST['department_id'])
-    assignment=ComplaintAssignment.objects.create(complaint=complaint, department=department, officer=None, priority=request.POST.get('priority','medium'))
-    complaint.status='assigned'; complaint.save(update_fields=['status','updated_at'])
-    ComplaintStatusHistory.objects.create(complaint=complaint, status='assigned', public_message=f'تمت إحالة الشكوى إلى قسم {department.name}')
-    if assignment.officer_id: InternalNotification.objects.create(user_id=assignment.officer_id, complaint=complaint, message=f'تم إسناد الشكوى {complaint.reference} إليك')
-    return JsonResponse({'assignment_id':assignment.id,'status':assignment.status}, status=201)
+    return _workflow_api(request, 'assign')
 
 @login_required
 @require_http_methods(['POST'])
 @transaction.atomic
 def action_submission(request):
-    from .models import AssignmentAction, ComplaintAssignment, ComplaintStatusHistory, InternalNotification
-    assignment=ComplaintAssignment.objects.select_related('complaint').get(pk=request.POST['assignment_id'])
-    if assignment.officer_id != request.user.id and not request.user.is_superuser and not request.user.groups.filter(name='Department Manager').exists(): return JsonResponse({'error':'غير مصرح'}, status=403)
-    action=AssignmentAction.objects.create(assignment=assignment, actor=request.user, internal_action=request.POST.get('internal_action',''), public_message=request.POST.get('public_message',''))
-    evidence = request.FILES.get('evidence')
-    if evidence:
-        if evidence.size > 5 * 1024 * 1024 or evidence.content_type not in {'image/jpeg','image/png','image/webp','application/pdf'}:
-            return JsonResponse({'error':'الدليل يجب أن يكون صورة أو PDF وأقل من 5 ميغابايت'}, status=400)
-        from .models import ComplaintAttachment
-        ComplaintAttachment.objects.create(complaint=assignment.complaint, uploaded_by=request.user, source='staff', visibility='internal', file=evidence, original_name=evidence.name)
-    assignment.status='submitted'; assignment.save(update_fields=['status'])
-    assignment.complaint.status='final_review'; assignment.complaint.save(update_fields=['status','updated_at'])
-    ComplaintStatusHistory.objects.create(complaint=assignment.complaint, status='final_review', public_message=action.public_message or 'تم إرسال المعالجة للمراجعة')
-    supervisors = request.user.__class__.objects.filter(is_active=True, is_staff=True, is_superuser=True)
-    for supervisor in supervisors: InternalNotification.objects.create(user=supervisor, complaint=assignment.complaint, message=f'الشكوى {assignment.complaint.reference} بانتظار المراجعة')
-    return JsonResponse({'action_id':action.id,'status':assignment.status}, status=201)
+    from .models import ComplaintAssignment
+    assignment_id = request.POST.get('assignment_id', '')
+    if not assignment_id.isdecimal():
+        return JsonResponse({'error': 'اختر إحالة صحيحة'}, status=400)
+    assignment = get_object_or_404(ComplaintAssignment, pk=assignment_id)
+    return _workflow_api(request, 'start' if request.POST.get('action') == 'start' else 'submit', complaint_id=assignment.complaint_id)
 
 @login_required
 @require_http_methods(['POST'])
 @transaction.atomic
 def final_review(request):
-    if not request.user.is_staff: return JsonResponse({'error':'غير مصرح'}, status=403)
-    from .models import ComplaintAssignment, ComplaintReview, ComplaintPublication, ComplaintStatusHistory, InternalNotification
-    complaint=Complaint.objects.get(pk=request.POST['complaint_id']); decision=request.POST['decision']; assignment=ComplaintAssignment.objects.filter(complaint=complaint, pk=request.POST.get('assignment_id')).first() if request.POST.get('assignment_id') else None
-    if assignment and decision == 'approved': assignment.status='approved'; assignment.save(update_fields=['status'])
-    if assignment and decision == 'returned': assignment.status='returned'; assignment.save(update_fields=['status'])
-    ComplaintReview.objects.create(complaint=complaint, assignment=assignment, reviewer=request.user, decision=decision, reason=request.POST.get('reason',''))
-    if decision == 'returned':
-        complaint.status='assigned'; complaint.save(update_fields=['status','updated_at'])
-        ComplaintStatusHistory.objects.create(complaint=complaint, status='assigned', public_message=request.POST.get('reason','أعيدت للقسم لاستكمال المعالجة'))
-        if assignment and assignment.officer_id: InternalNotification.objects.create(user=assignment.officer, complaint=complaint, message=f'أعيدت الشكوى {complaint.reference} لاستكمال الإجراء')
-    if decision == 'approved':
-        if not complaint.assignments.exclude(status__in=['approved','cancelled']).exists():
-            complaint.status='completed'; complaint.save(update_fields=['status','updated_at'])
-            ComplaintStatusHistory.objects.create(complaint=complaint, status='completed', actor=request.user, public_message='تم اعتماد المعالجة وإغلاق الشكوى')
-    if decision == 'closed':
-        if complaint.assignments.exclude(status__in=['approved','cancelled']).exists(): return JsonResponse({'error':'لا يمكن إغلاق الشكوى قبل اعتماد جميع المهام'}, status=409)
-        complaint.status='completed'; complaint.save(update_fields=['status','updated_at'])
-        ComplaintStatusHistory.objects.create(complaint=complaint, status='completed', actor=request.user, public_message='تم اعتماد المعالجة وإغلاق الشكوى')
-    if decision == 'additional_assignment':
-        complaint.status='transferred'; complaint.save(update_fields=['status','updated_at'])
-        ComplaintStatusHistory.objects.create(complaint=complaint, status='transferred', actor=request.user, public_message='أحيلت الشكوى إلى قسم آخر لاستكمال المعالجة')
-    return JsonResponse({'status':complaint.status})
+    return _workflow_api(request, request.POST.get('decision'))
 
 @login_required
 @require_http_methods(['POST'])
 def publish_resolution(request):
-    if not request.user.is_superuser: return JsonResponse({'error':'يجب أن يعتمد المشرف العام النشر'}, status=403)
-    from .models import ComplaintPublication, ComplaintStatusHistory
-    complaint=Complaint.objects.get(pk=request.POST['complaint_id'])
-    if complaint.status not in {'completed', 'closed'}:
-        return JsonResponse({'error':'لا يمكن نشر النتيجة قبل اعتماد المعالجة أو إغلاق الشكوى'}, status=409)
-    from django.utils import timezone
-    publication, _=ComplaintPublication.objects.update_or_create(complaint=complaint, defaults={'summary':request.POST.get('summary',''),'visibility':request.POST.get('visibility','private'),'approved':True,'approved_by':request.user,'published_at':timezone.now()})
-    ComplaintStatusHistory.objects.create(complaint=complaint, status=complaint.status, public_message='تم نشر نتيجة المعالجة للمواطن')
-    return JsonResponse({'publication_id':publication.id,'approved':publication.approved}, status=201)
+    return _workflow_api(request, 'publish')
+
+
+def _workflow_api(request, action, complaint_id=None):
+    from .workflow import WorkflowError, transition
+    try:
+        complaint, assignment = transition(
+            complaint_id or request.POST.get('complaint_id'), request.user, action,
+            department_id=request.POST.get('department_id'), assignment_id=request.POST.get('assignment_id'),
+            internal_note=request.POST.get('internal_action') or request.POST.get('reason', ''),
+            public_message=request.POST.get('public_message') or request.POST.get('summary', ''),
+            evidence_ids=request.POST.getlist('evidence_ids'), uploads=request.FILES.getlist('evidence'),
+            priority=request.POST.get('priority', 'medium'), due_at=request.POST.get('due_at'),
+            version=request.POST.get('version'), confirm=request.POST.get('confirm') in {'1', 'on', 'true'},
+        )
+    except PermissionDenied:
+        return JsonResponse({'error': 'غير مصرح بهذا الإجراء'}, status=403)
+    except WorkflowError as error:
+        return JsonResponse({'error': error.message}, status=error.status)
+    except (Complaint.DoesNotExist, ValueError, TypeError):
+        return JsonResponse({'error': 'بيانات الشكوى أو الإحالة غير صحيحة'}, status=400)
+    return JsonResponse({'reference': complaint.reference, 'status': complaint.status,
+                         'status_label': complaint.get_status_display(),
+                         'assignment_id': assignment.pk if assignment else None}, status=201 if action in {'assign', 'submit', 'publish'} else 200)
+
+
+@login_required
+@require_http_methods(['POST'])
+def complaint_transition(request, complaint_id):
+    from django.contrib import admin, messages
+    from .workflow import WorkflowError, complaints_for, transition, can_review, available_actions
+    from .workflow_forms import ComplaintWorkflowForm
+    complaint = get_object_or_404(complaints_for(request.user), pk=complaint_id)
+    form = ComplaintWorkflowForm(request.POST, request.FILES, complaint=complaint, user=request.user)
+    status = 400
+    if form.is_valid():
+        data = form.cleaned_data
+        try:
+            complaint, _ = transition(
+                complaint.pk, request.user, data['action'],
+                department_id=data['department'].pk if data.get('department') else None,
+                internal_note=data.get('internal_note', ''), public_message=data.get('public_message', ''),
+                priority=data.get('priority') or 'medium', due_at=data.get('due_at'),
+                evidence_ids=[item.pk for item in data.get('evidence_ids', [])],
+                uploads=data.get('evidence') or [],
+                version=data['version'], confirm=data.get('confirm', False),
+            )
+        except WorkflowError as error:
+            form.add_error(None, error.message)
+            status = error.status
+        else:
+            messages.success(request, 'تم حفظ الإجراء وتحديث مرحلة الشكوى وسجل التتبع تلقائياً.')
+            return redirect('admin:complaints_complaint_change', complaint.pk)
+    return render(request, 'complaints/admin/workflow_error.html', {
+        **admin.site.each_context(request), 'title': 'مراجعة الإجراء',
+        'workflow_complaint': complaint, 'workflow_form': form,
+        'workflow_actions': available_actions(request.user, complaint),
+        'workflow_reviewer': can_review(request.user),
+        'workflow_evidence': complaint.attachments.filter(source='staff'),
+    }, status=status)
+
+
+def complaint_evidence(request, attachment_id):
+    """Serve previews in production too; private uploads require case access."""
+    from django.http import FileResponse, Http404
+    from pathlib import Path
+    from .models import ComplaintAttachment
+    from .workflow import complaints_for, TERMINAL
+    item = get_object_or_404(ComplaintAttachment.objects.select_related('complaint'), pk=attachment_id)
+    publication = getattr(item.complaint, 'publication', None)
+    public = bool(item.source == 'staff' and item.visibility in {'public', 'tracked'}
+                  and item.complaint.status in TERMINAL and publication and publication.approved
+                  and publication.visibility in {'tracked', 'public'} and publication.published_at
+                  and item.uploaded_at <= publication.published_at)
+    if not public and not (request.user.is_authenticated and complaints_for(request.user).filter(pk=item.complaint_id).exists()):
+        raise Http404
+    content_types = {'.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png',
+                     '.webp': 'image/webp', '.gif': 'image/gif', '.pdf': 'application/pdf'}
+    content_type = content_types.get(Path(item.file.name).suffix.lower(), 'application/octet-stream')
+    if request.GET.get('preview') == '1' and content_type.startswith('image/'):
+        from django.core.cache import cache
+        from django.http import HttpResponse
+        from hashlib import sha256
+        from io import BytesIO
+        from PIL import Image, ImageOps, UnidentifiedImageError
+        key = 'evidence-preview:' + sha256(f'{item.pk}:{item.file.name}'.encode()).hexdigest()
+        thumbnail = cache.get(key)
+        if thumbnail is None:
+            try:
+                with item.file.open('rb') as source, Image.open(source) as image:
+                    if image.width * image.height <= 20_000_000:
+                        image = ImageOps.exif_transpose(image)
+                        image.thumbnail((960, 960), Image.Resampling.LANCZOS)
+                        output = BytesIO()
+                        image.convert('RGB').save(output, 'WEBP', quality=78, method=4)
+                        thumbnail = output.getvalue()
+                        cache.set(key, thumbnail, 3600)
+            except (OSError, ValueError, UnidentifiedImageError, Image.DecompressionBombError):
+                pass
+        if thumbnail:
+            response = HttpResponse(thumbnail, content_type='image/webp')
+            response['Cache-Control'] = 'private, no-store'
+            response['X-Content-Type-Options'] = 'nosniff'
+            return response
+    try:
+        response = FileResponse(item.file.open('rb'), content_type=content_type,
+                                as_attachment=content_type == 'application/octet-stream',
+                                filename=item.original_name or Path(item.file.name).name)
+    except (FileNotFoundError, ValueError):
+        raise Http404('ملف الدليل غير متاح في التخزين.')
+    response['Cache-Control'] = 'private, no-store'
+    response['X-Content-Type-Options'] = 'nosniff'
+    response['X-Frame-Options'] = 'SAMEORIGIN'
+    return response
 
 def public_resolutions(request):
     from .models import ComplaintPublication
@@ -165,36 +241,13 @@ def public_resolutions(request):
 
 @login_required
 def complaint_workflow(request):
-    """Single list/detail workspace for reviewers and super admins."""
+    """Old workspace URLs now use the canonical complaint list/detail pages."""
     if not request.user.is_staff:
         return JsonResponse({'error': 'غير مصرح'}, status=403)
-    from core.models import Department
-    from .models import ComplaintAssignment, ComplaintReview, ComplaintPublication
-    if request.method == 'POST':
-        complaint = Complaint.objects.get(pk=request.POST['complaint_id'])
-        action = request.POST.get('action')
-        if action == 'assign':
-            department = Department.objects.get(pk=request.POST['department_id'])
-            # Routing is department-level; the department manager assigns the work internally.
-            ComplaintAssignment.objects.create(complaint=complaint, department=department, officer=None)
-            complaint.status = 'assigned'; complaint.save(update_fields=['status', 'updated_at'])
-        elif action in {'approved', 'returned', 'closed'}:
-            assignment = complaint.assignments.order_by('-assigned_at').first()
-            if assignment and action == 'approved': assignment.status = 'approved'; assignment.save(update_fields=['status'])
-            if assignment and action == 'returned': assignment.status = 'returned'; assignment.save(update_fields=['status'])
-            ComplaintReview.objects.create(complaint=complaint, assignment=assignment, reviewer=request.user, decision=action, reason=request.POST.get('reason',''))
-            complaint.status = 'assigned' if action == 'returned' else ('completed' if action in {'approved','closed'} else complaint.status)
-            complaint.save(update_fields=['status', 'updated_at'])
-        elif action == 'publish':
-            ComplaintPublication.objects.update_or_create(complaint=complaint, defaults={'summary': request.POST.get('summary',''), 'visibility': 'tracked', 'approved': True, 'approved_by': request.user})
-        return redirect(f'/staff/complaints/?complaint={complaint.pk}')
-    complaints = Complaint.objects.order_by('-updated_at')
-    selected = complaints.filter(pk=request.GET.get('complaint')).first() if request.GET.get('complaint') else complaints.first()
-    timeline = []
-    if selected:
-        labels = dict(Complaint.STATUS)
-        timeline = [(event, labels.get(event.status, event.status)) for event in selected.status_history.order_by('created_at', 'pk')]
-    return render(request, 'staff/complaints.html', {'complaints': complaints, 'selected': selected, 'timeline': timeline, 'departments': Department.objects.filter(active=True), 'status_choices': Complaint.STATUS})
+    complaint_id = request.GET.get('complaint') or request.POST.get('complaint_id')
+    if complaint_id and complaint_id.isdecimal():
+        return redirect('admin:complaints_complaint_change', complaint_id)
+    return redirect('admin:complaints_complaint_changelist')
 
 @login_required
 def dashboard_report(request):

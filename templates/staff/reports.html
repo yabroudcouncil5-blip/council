@@ -7,21 +7,46 @@
 {% block breadcrumbs %}<div class="breadcrumbs"><a href="{% url 'admin:index' %}">لوحة الإدارة</a> › التقارير والمتابعة</div>{% endblock %}
 {% block content %}
 <div class="dashboard-reports">
-<div class="report-head"><div><h1>التقارير والمتابعة</h1><p>ملخص الشكاوى والإحالات ومتابعة العمل في الأقسام</p><small>آخر تحديث: {{ generated_at|date:"Y/m/d H:i" }}</small></div><a class="report-link" href="{% url 'admin:index' %}">العودة إلى لوحة الإدارة ←</a></div>
+<div class="report-head">
+    <div><h2>ملخص الأداء</h2><p>الشكاوى والإحالات ومواعيد العمل في الأقسام.</p></div>
+    <time datetime="{{ generated_at|date:'c' }}">آخر تحديث: {{ generated_at|date:"Y/m/d H:i" }}</time>
+</div>
 <section class="metrics" aria-label="المؤشرات العامة">
- <div class="metric"><span>إجمالي الشكاوى</span><strong>{{ total_complaints }}</strong></div>
- <div class="metric"><span>الشكاوى المفتوحة</span><strong>{{ open_complaints }}</strong></div>
+ <a class="metric" href="{% url 'admin:complaints_complaint_changelist' %}"><span>إجمالي الشكاوى</span><strong>{{ total_complaints }}</strong></a>
+ <a class="metric" href="{% url 'admin:complaints_complaint_changelist' %}?status__in=submitted,under_review,assigned,in_progress,final_review,transferred"><span>الشكاوى المفتوحة</span><strong>{{ open_complaints }}</strong></a>
  <div class="metric"><span>نسبة الشكاوى المعالجة</span><strong>{{ completion_rate }}٪</strong></div>
  <div class="metric"><span>إجمالي الإحالات</span><strong>{{ total_assignments }}</strong></div>
- <div class="metric alert"><span>الإحالات المتأخرة</span><strong>{{ overdue_count }}</strong></div>
+ <a class="metric alert" href="#overdue-assignments"><span>الإحالات المتأخرة</span><strong>{{ overdue_count }}</strong></a>
  <div class="metric"><span>تنبيهاتك غير المقروءة</span><strong>{{ unread_notifications }}</strong></div>
 </section>
 {% if not total_complaints %}<div class="report-panel report-empty">لا توجد شكاوى مسجلة بعد. ستظهر المؤشرات تلقائياً عند استقبال الشكاوى وإسناد المهام.</div>{% endif %}
 <div class="report-columns">
- <section class="report-panel"><h2>الشكاوى حسب الحالة</h2>{% for row in complaint_rows %}<div class="status-row"><div class="status-label"><a class="report-link" href="{% url 'admin:complaints_complaint_changelist' %}?status__exact={{ row.status }}">{{ row.label }}</a><span>{{ row.count }} · {{ row.percent }}٪</span></div><div class="status-track" aria-hidden="true"><div class="status-fill" style="width:{{ row.percent }}%"></div></div></div>{% endfor %}</section>
- <section class="report-panel"><h2>حالات الإحالات</h2>{% for row in assignment_rows %}<div class="status-label"><span>{{ row.label }}</span><span class="status-count">{{ row.count }}</span></div>{% empty %}<p class="report-empty">لا توجد إحالات مسجلة بعد.</p>{% endfor %}<p class="report-note">الإحالات المعتمدة والملغاة لا تُحتسب ضمن المتأخرات.</p></section>
+ <section class="report-panel">
+    <div class="report-panel-heading"><h2>الشكاوى حسب الحالة</h2></div>
+    <div class="report-table-wrap" tabindex="0" role="region" aria-label="الشكاوى حسب الحالة">
+        <table class="report-table"><thead><tr><th scope="col">الحالة</th><th scope="col">العدد</th><th scope="col">النسبة</th></tr></thead><tbody>
+        {% for row in complaint_rows %}<tr><td><a class="report-link" href="{% url 'admin:complaints_complaint_changelist' %}?status__exact={{ row.status }}">{{ row.label }}</a></td><td>{{ row.count }}</td><td>{{ row.percent }}٪</td></tr>{% endfor %}
+        </tbody></table>
+    </div>
+ </section>
+ <section class="report-panel">
+    <div class="report-panel-heading"><h2>حالات الإحالات</h2></div>
+    <div class="report-table-wrap" tabindex="0" role="region" aria-label="حالات الإحالات">
+        <table class="report-table"><thead><tr><th scope="col">الحالة</th><th scope="col">العدد</th></tr></thead><tbody>
+        {% for row in assignment_rows %}<tr><td>{{ row.label }}</td><td>{{ row.count }}</td></tr>{% empty %}<tr><td colspan="2" class="report-empty">لا توجد إحالات مسجلة بعد.</td></tr>{% endfor %}
+        </tbody></table>
+    </div>
+    <p class="report-note">الإحالات المعتمدة والملغاة لا تُحتسب ضمن المتأخرات.</p>
+ </section>
 </div>
-<section class="report-panel"><h2>متابعة الأقسام</h2><div class="report-table-wrap"><table class="report-table"><thead><tr><th scope="col">القسم</th><th scope="col">الإحالات</th><th scope="col">المعتمدة</th><th scope="col">المتأخرة</th></tr></thead><tbody>{% for department in departments %}<tr><td>{{ department.name }}</td><td>{{ department.total }}</td><td>{{ department.approved }}</td><td>{{ department.overdue }}</td></tr>{% empty %}<tr><td colspan="4" class="report-empty">لا توجد أقسام مسجلة.</td></tr>{% endfor %}</tbody></table></div><p class="report-note">قد تُحال الشكوى الواحدة إلى أكثر من قسم؛ الأرقام هنا تمثل الإحالات.</p></section>
-<section class="report-panel"><h2>الإحالات المتأخرة</h2><p class="report-note">أقدم 20 إحالة تجاوزت موعدها ولم تُعتمد أو تُلغَ.</p><div class="report-table-wrap"><table class="report-table"><thead><tr><th scope="col">الشكوى</th><th scope="col">القسم</th><th scope="col">الموظف المسؤول</th><th scope="col">الموعد المحدد</th></tr></thead><tbody>{% for item in overdue_assignments %}<tr><td><a class="report-link" href="{% url 'admin:complaints_complaint_change' item.complaint_id %}">{{ item.complaint.reference }}</a></td><td>{{ item.department.name }}</td><td>{% if item.officer %}{{ item.officer.get_full_name|default:item.officer.username }}{% else %}غير مسندة لموظف{% endif %}</td><td>{{ item.due_at|date:"Y/m/d H:i" }}</td></tr>{% empty %}<tr><td colspan="4" class="report-empty">لا توجد إحالات متأخرة حالياً.</td></tr>{% endfor %}</tbody></table></div></section>
+<section class="report-panel">
+    <div class="report-panel-heading"><h2>متابعة الأقسام</h2></div>
+    <div class="report-table-wrap" tabindex="0" role="region" aria-label="متابعة الأقسام"><table class="report-table"><thead><tr><th scope="col">القسم</th><th scope="col">الإحالات</th><th scope="col">المعتمدة</th><th scope="col">المتأخرة</th></tr></thead><tbody>{% for department in departments %}<tr><td>{{ department.name }}</td><td>{{ department.total }}</td><td>{{ department.approved }}</td><td>{{ department.overdue }}</td></tr>{% empty %}<tr><td colspan="4" class="report-empty">لا توجد أقسام مسجلة.</td></tr>{% endfor %}</tbody></table></div>
+    <p class="report-note">قد تُحال الشكوى الواحدة إلى أكثر من قسم؛ الأرقام هنا تمثل الإحالات.</p>
+</section>
+<section class="report-panel" id="overdue-assignments">
+    <div class="report-panel-heading"><h2>الإحالات المتأخرة</h2><span>أقدم 20 إحالة تجاوزت الموعد المحدد</span></div>
+    <div class="report-table-wrap" tabindex="0" role="region" aria-label="الإحالات المتأخرة"><table class="report-table report-overdue-table"><thead><tr><th scope="col">الرقم المرجعي</th><th scope="col">الشكوى</th><th scope="col">القسم المختص</th><th scope="col">الموعد المحدد</th></tr></thead><tbody>{% for item in overdue_assignments %}<tr><td><a class="report-link report-reference" href="{% url 'admin:complaints_complaint_change' item.complaint_id %}"><bdi>{{ item.complaint.reference }}</bdi></a></td><td>{{ item.complaint.title }}</td><td>{{ item.department.name }}<small>{% if item.officer %}{{ item.officer.get_full_name|default:item.officer.username }}{% else %}غير مسندة لموظف{% endif %}</small></td><td><time datetime="{{ item.due_at|date:'c' }}">{{ item.due_at|date:"Y/m/d H:i" }}</time></td></tr>{% empty %}<tr><td colspan="4" class="report-empty">لا توجد إحالات متأخرة حالياً.</td></tr>{% endfor %}</tbody></table></div>
+</section>
 </div>
 {% endblock %}

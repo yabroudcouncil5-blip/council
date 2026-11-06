@@ -1,0 +1,8 @@
+<div class="dashboard-checkbox-field">
+    {{ field.field }}
+    <div>
+        {{ field.label_tag }}
+        {% if field.field.help_text %}<div class="dashboard-help">{{ field.field.help_text|safe }}</div>{% endif %}
+        {% if field.errors %}<div class="dashboard-field-errors" role="alert">{{ field.errors }}</div>{% endif %}
+    </div>
+</div>

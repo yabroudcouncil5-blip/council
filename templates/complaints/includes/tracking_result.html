@@ -1,13 +1,28 @@
   {% if tracking_error %}<div class="notice error" role="alert">{{ tracking_error }}</div>{% endif %}
   {% if tracking_result %}
-  <section class="card service-panel" aria-live="polite">
+  <section class="card service-panel tracking-result" data-reference="{{ tracking_result.reference }}" aria-live="polite">
     <h2>متابعة الشكوى</h2>
     <p>الرقم المرجعي: <bdi>{{ tracking_result.reference }}</bdi></p>
     <h3>تحديثات الشكوى</h3>
-    <ol class="timeline">{% for item in tracking_result.timeline %}
-      <li><strong>{{ item.status }}</strong><p>{{ item.public_message }}</p><time class="muted">{{ item.created_at|date:'Y/m/d H:i' }}</time></li>
-      {% empty %}<li>تم استلام الشكوى، وستظهر تحديثاتها هنا.</li>{% endfor %}
-    </ol>
-    {% if tracking_result.evidence %}<h3>الأدلة المنشورة</h3><div class="tracking-evidence">{% for url in tracking_result.evidence %}<a href="{{ url }}" target="_blank" rel="noopener">فتح الدليل</a>{% endfor %}</div>{% endif %}
+    <table class="tracking-history">
+      <thead><tr><th scope="col">المرحلة</th><th scope="col">التاريخ والوقت</th><th scope="col">التحديث والنتيجة</th></tr></thead>
+      <tbody>{% for item in tracking_result.timeline %}
+        <tr{% if item.latest %} class="tracking-latest"{% endif %}>
+          <th scope="row">{{ item.status }}{% if item.latest %}<small>آخر إجراء</small>{% endif %}</th>
+          <td><time datetime="{{ item.created_at|date:'c' }}">{{ item.created_at|date:'Y/m/d H:i' }}</time></td>
+          <td><p>{{ item.public_message|linebreaksbr }}</p>
+          {% if item.latest and tracking_result.evidence_items %}
+            <div class="tracking-proof-grid" aria-label="أدلة المعالجة المعتمدة">
+            {% for proof in tracking_result.evidence_items %}<figure>
+              {% if proof.image %}<a href="{{ proof.url }}" target="_blank" rel="noopener"><img src="{{ proof.preview_url }}" alt="دليل المعالجة المعتمد" loading="lazy" width="180" height="120"></a>
+              {% elif proof.pdf %}<iframe src="{{ proof.url }}" title="دليل المعالجة المعتمد" loading="lazy"></iframe>{% endif %}
+              <figcaption><a href="{{ proof.url }}" target="_blank" rel="noopener">عرض الدليل المعتمد ↗</a></figcaption>
+            </figure>{% endfor %}
+            </div>
+          {% endif %}</td>
+        </tr>
+      {% endfor %}</tbody>
+    </table>
+    <p class="tracking-refresh-note">تتحدث مراحل الشكوى تلقائياً عند اتخاذ إجراء من البلدية.</p>
   </section>
   {% endif %}

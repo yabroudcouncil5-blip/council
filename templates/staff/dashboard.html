@@ -1,60 +1,37 @@
+{% extends "admin/base_site.html" %}
 {% load static %}
-<!doctype html>
-<html lang="ar" dir="rtl">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>لوحة الموظف | بلدية يبرود</title>
-  <link rel="stylesheet" href="{% static 'core/fonts.css' %}">
-  <style>
-    * { box-sizing: border-box; }
-    body { font-family: 'Tajawal', Tahoma, Arial, sans-serif; background: #f8fafc; color: #334155; margin: 0; line-height: 1.7; }
-    button { font: inherit; }
-    .bar { background: #fff; color: #0f766e; border-bottom: 1px solid #e2e8f0; padding: 16px 5%; display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
-    .bar form { margin: 0; }
-    .logout { background: transparent; color: #b91c1c; padding: 8px 12px; border: 1px solid #fecaca; border-radius: 8px; cursor: pointer; }
-    .logout:hover { background: #fef2f2; }
-    .logout:focus-visible { outline: 2px solid #0f766e; outline-offset: 3px; }
-    .wrap { max-width: 1100px; margin: auto; padding: 28px 20px; }
-    h1 { margin: 0; font-size: 26px; }
-    h2 { font-size: 19px; }
-    .intro { color: #64748b; margin: 8px 0 24px; }
-    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr)); gap: 16px; margin-bottom: 28px; }
-    .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; min-width: 0; }
-    .card p { margin: 8px 0; overflow-wrap: anywhere; }
-    .card small { color: #64748b; }
-    .tag { display: inline-block; padding: 3px 9px; border-radius: 6px; background: #f0fdfa; color: #0f766e; font-size: 13px; }
-  </style>
-</head>
-<body>
-  <header class="bar">
-    <b>مساحة العمل الداخلية</b>
-    <form action="{% url 'logout' %}" method="post">
-      {% csrf_token %}
-      <button type="submit" class="logout">تسجيل الخروج</button>
-    </form>
-  </header>
-  <main class="wrap">
-    <h1>مهامي الحالية</h1>
-    <p class="intro">الشكاوى والمهام المسندة إليك تظهر هنا.</p>
-    <section class="grid" aria-label="المهام المسندة">
-      {% for item in assignments %}
-        <article class="card">
-          <span class="tag">{{ item.status }}</span>
-          <h2><bdi>{{ item.complaint.reference }}</bdi></h2>
-          <p>{{ item.complaint.title }}</p>
-          <small>{{ item.department.name }} · {{ item.due_at|default:'لا يوجد موعد' }}</small>
-        </article>
-      {% empty %}
-        <article class="card">لا توجد مهام مسندة حالياً.</article>
-      {% endfor %}
-    </section>
-    <h2>تنبيهات غير مقروءة</h2>
-    {% for n in notifications %}
-      <article class="card"><p>{{ n.message }}</p></article>
-    {% empty %}
-      <p class="intro">لا توجد تنبيهات جديدة.</p>
-    {% endfor %}
-  </main>
-</body>
-</html>
+{% block extrastyle %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'core/overview.css' %}">
+{% endblock %}
+{% block content %}
+<section class="dashboard-overview" aria-label="مهام القسم">
+    <div class="dashboard-page-heading">
+        <div><h2>مهام القسم</h2><p>افتح الشكوى للاطلاع على تفاصيلها وتسجيل الإجراء.</p></div>
+        <a class="dashboard-action" href="{% url 'admin:complaints_complaint_changelist' %}">قائمة الشكاوى ←</a>
+    </div>
+    <div class="dashboard-columns">
+        <section class="dashboard-panel" aria-labelledby="staff-tasks-heading">
+            <div class="dashboard-panel-heading"><h2 id="staff-tasks-heading">الشكاوى المسندة</h2></div>
+            <div class="dashboard-table-wrap" tabindex="0" role="region" aria-label="جدول الشكاوى المسندة">
+                <table class="dashboard-table">
+                    <thead><tr><th scope="col">الرقم المرجعي</th><th scope="col">الشكوى والقسم</th><th scope="col">الحالة</th><th scope="col">الموعد المحدد</th></tr></thead>
+                    <tbody>{% for item in assignments %}
+                    <tr>
+                        <td><a class="dashboard-reference" href="{% url 'admin:complaints_complaint_change' item.complaint_id %}"><bdi>{{ item.complaint.reference }}</bdi></a></td>
+                        <td><a class="dashboard-subject" href="{% url 'admin:complaints_complaint_change' item.complaint_id %}">{{ item.complaint.title }}</a><small class="dashboard-subtext">{{ item.department.name }}</small></td>
+                        <td><span class="dashboard-status">{{ item.complaint.get_status_display }}</span></td>
+                        <td>{% if item.due_at %}<time datetime="{{ item.due_at|date:'c' }}">{{ item.due_at|date:'Y/m/d H:i' }}</time>{% else %}<span class="dashboard-subtext">غير محدد</span>{% endif %}</td>
+                    </tr>
+                    {% empty %}<tr><td colspan="4" class="dashboard-empty">لا توجد مهام مسندة حالياً.</td></tr>{% endfor %}</tbody>
+                </table>
+            </div>
+        </section>
+        <section class="dashboard-panel" aria-labelledby="staff-notifications-heading">
+            <div class="dashboard-panel-heading"><h2 id="staff-notifications-heading">تنبيهات المتابعة</h2></div>
+            {% if notifications %}<ul class="dashboard-notifications">{% for item in notifications %}<li>{{ item.message }}<time datetime="{{ item.created_at|date:'c' }}">{{ item.created_at|date:'Y/m/d H:i' }}</time></li>{% endfor %}</ul>
+            {% else %}<p class="dashboard-empty">لا توجد تنبيهات جديدة.</p>{% endif %}
+        </section>
+    </div>
+</section>
+{% endblock %}

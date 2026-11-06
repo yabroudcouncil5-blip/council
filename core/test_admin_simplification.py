@@ -49,17 +49,17 @@ class AdminSelectionSimplificationTests(TestCase):
                     for name in names:
                         self.assert_selection_only(form.fields[name])
 
-    def test_inline_assignment_choices_are_validated_and_selectors_are_simple(self):
+    def test_workflow_choices_replace_manual_assignment_status_editing(self):
+        from complaints.workflow_forms import ComplaintWorkflowForm
         request = self.request_for(self.superadmin)
-        complaint_admin = admin.site._registry[Complaint]
-        inline = next(item for item in complaint_admin.get_inline_instances(request, self.complaint)
-                      if item.model is ComplaintAssignment)
-        form = inline.get_formset(request, self.complaint).form()
+        form = ComplaintWorkflowForm(complaint=self.complaint, user=self.superadmin)
         self.assert_selection_only(form.fields['department'])
-        for name in ('status', 'priority'):
-            self.assertIsInstance(form.fields[name], forms.ChoiceField)
-            self.assertTrue(list(form.fields[name].choices))
+        self.assertNotIn('status', form.fields)
         self.assertEqual(form.fields['due_at'].widget.input_type, 'datetime-local')
+        inline = next(item for item in admin.site._registry[Complaint].get_inline_instances(request, self.complaint)
+                      if item.model is ComplaintAssignment)
+        self.assertFalse(inline.has_add_permission(request, self.complaint))
+        self.assertFalse(inline.has_change_permission(request, self.complaint))
 
     def test_rendered_complaint_has_no_related_record_management_links(self):
         self.client.force_login(self.superadmin)
@@ -128,35 +128,22 @@ class AdminSelectionSimplificationTests(TestCase):
         self.department.refresh_from_db()
         self.assertEqual(self.department.name, 'الطرق والإنارة')
 
-    def test_new_inline_review_uses_current_user_and_preserves_existing_reviewer(self):
-        request = self.request_for(self.reviewer)
-        complaint_admin = admin.site._registry[Complaint]
-        inline = next(item for item in complaint_admin.get_inline_instances(request, self.complaint)
-                      if item.model is ComplaintReview)
-        formset_class = inline.get_formset(request, self.complaint)
-        prefix = formset_class.get_default_prefix()
-        formset = formset_class(data={
-            f'{prefix}-TOTAL_FORMS': '1', f'{prefix}-INITIAL_FORMS': '0',
-            f'{prefix}-MIN_NUM_FORMS': '0', f'{prefix}-MAX_NUM_FORMS': '1000',
-            f'{prefix}-0-decision': 'approved', f'{prefix}-0-reason': 'تم التحقق',
-            # A forged reviewer value must not be accepted from the browser.
-            f'{prefix}-0-reviewer': self.superadmin.pk,
-        }, instance=self.complaint)
-        self.assertTrue(formset.is_valid(), formset.errors)
-        formset.save()
+    def test_workflow_uses_current_reviewer_and_history_is_not_editable(self):
+        from complaints.workflow import transition
+        _, assignment = transition(self.complaint.pk, self.reviewer, 'assign', department_id=self.department.pk)
+        transition(self.complaint.pk, self.reviewer, 'submit', assignment_id=assignment.pk, internal_note='تم الإصلاح')
+        self.complaint.refresh_from_db()
+        self.client.force_login(self.reviewer)
+        response = self.client.post(f'/staff/complaints/{self.complaint.pk}/action/', {
+            'action': 'approved', 'internal_note': 'ملاحظة داخلية',
+            'public_message': 'أصلحت الإنارة', 'confirm': 'on',
+            'version': self.complaint.updated_at.isoformat(), 'reviewer': self.superadmin.pk,
+        })
+        self.assertEqual(response.status_code, 302)
         review = self.complaint.reviews.get()
         self.assertEqual(review.reviewer_id, self.reviewer.pk)
-        self.assertNotIn('reviewer', formset.forms[0].fields)
-
-        other_request = self.request_for(self.superadmin)
-        editing_class = inline.get_formset(other_request, self.complaint)
-        editing = editing_class(data={
-            f'{prefix}-TOTAL_FORMS': '1', f'{prefix}-INITIAL_FORMS': '1',
-            f'{prefix}-MIN_NUM_FORMS': '0', f'{prefix}-MAX_NUM_FORMS': '1000',
-            f'{prefix}-0-id': review.pk, f'{prefix}-0-decision': 'approved',
-            f'{prefix}-0-reason': 'ملاحظة إضافية', f'{prefix}-0-reviewer': self.superadmin.pk,
-        }, instance=self.complaint)
-        self.assertTrue(editing.is_valid(), editing.errors)
-        editing.save()
-        review.refresh_from_db()
-        self.assertEqual(review.reviewer_id, self.reviewer.pk)
+        request = self.request_for(self.superadmin)
+        inline = next(item for item in admin.site._registry[Complaint].get_inline_instances(request, self.complaint)
+                      if item.model is ComplaintReview)
+        self.assertFalse(inline.has_change_permission(request, self.complaint))
+        self.assertFalse(inline.has_add_permission(request, self.complaint))

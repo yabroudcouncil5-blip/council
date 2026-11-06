@@ -1,0 +1,1 @@
+<div class="readonly dashboard-readonly">{% if value != None and value != "" %}{{ value }}{% elif field.contents != None and field.contents != "" %}{% if field.is_file %}{% include "unfold/helpers/field_readonly_value_file.html" %}{% else %}{{ field.contents }}{% endif %}{% else %}—{% endif %}</div>

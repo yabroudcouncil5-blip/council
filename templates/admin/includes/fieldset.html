@@ -1,0 +1,12 @@
+<fieldset class="module dashboard-fieldset{% if fieldset.classes %} {{ fieldset.classes }}{% endif %}" {% if stacked != 1 %}x-show="activeTab == 'general'"{% endif %}>
+    {% if fieldset.is_collapsible %}<details><summary>{% endif %}
+    {% if fieldset.name and "tab" not in fieldset.classes %}
+        <h2 class="dashboard-section-title">{{ fieldset.name }}</h2>
+    {% endif %}
+    {% if fieldset.is_collapsible %}</summary>{% endif %}
+    {% if fieldset.description %}<div class="dashboard-section-description">{{ fieldset.description|safe }}</div>{% endif %}
+    <div class="dashboard-fieldset-body aligned">
+        {% for line in fieldset %}{% include "unfold/helpers/fieldset_row.html" %}{% endfor %}
+    </div>
+    {% if fieldset.is_collapsible %}</details>{% endif %}
+</fieldset>

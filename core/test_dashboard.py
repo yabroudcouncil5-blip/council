@@ -17,8 +17,8 @@ class CouncilDashboardTests(TestCase):
         self.assertContains(response, 'YBC-TEST-1')
         self.assertEqual(response.context['metrics'][0]['value'], 1)
         self.assertContains(response, '/admin/complaints/complaint/')
-        self.assertEqual(self.client.get('/admin/complaints/complaintassignment/add/').status_code, 200)
-        self.assertEqual(self.client.get('/admin/complaints/complaintreview/add/').status_code, 200)
+        self.assertRedirects(self.client.get('/admin/complaints/complaintassignment/add/'), '/admin/complaints/complaint/')
+        self.assertEqual(self.client.get('/admin/complaints/complaintreview/add/').status_code, 403)
 
     def test_staff_without_model_permissions_cannot_see_complaints(self):
         user = User.objects.create_user('limited', is_staff=True)

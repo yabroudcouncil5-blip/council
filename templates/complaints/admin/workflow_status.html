@@ -1,0 +1,7 @@
+{% if workflow_complaint %}
+<section class="dashboard-workflow-status" aria-label="مرحلة الشكوى">
+  <div><small>المرحلة الحالية — نفس المرحلة في تتبع المواطن</small><strong>{{ workflow_complaint.get_status_display }}</strong></div>
+  <div><small>الرقم المرجعي</small><bdi>{{ workflow_complaint.reference }}</bdi></div>
+  {% if workflow_actions %}<a class="dashboard-action" href="#complaint-next-action">اتخاذ الإجراء التالي ↓</a>{% endif %}
+</section>
+{% endif %}

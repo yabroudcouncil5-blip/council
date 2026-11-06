@@ -20,7 +20,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from core.views import health, council_logo, UnifiedLoginView
 from website.views import upload_editor_image, content_image
-from complaints.views import complaint_form, tracking_form, submit_complaint, track_complaint, recovery_request, review_queue, assign_complaint, action_submission, final_review, publish_resolution, public_resolutions, dashboard_report, staff_dashboard, complaint_workflow
+from complaints.views import complaint_form, tracking_form, submit_complaint, track_complaint, recovery_request, review_queue, assign_complaint, action_submission, final_review, publish_resolution, public_resolutions, dashboard_report, staff_dashboard, complaint_workflow, complaint_transition, complaint_evidence
 from django.contrib.auth import views as auth_views
 
 urlpatterns = [
@@ -32,6 +32,8 @@ urlpatterns = [
     path('health/', health),
     path('complaints/submit/', complaint_form),
     path('complaints/track/', tracking_form),
+    path('complaints/evidence/<int:attachment_id>/', complaint_evidence, name='complaint-evidence'),
+    path('staff/complaints/<int:complaint_id>/action/', complaint_transition, name='complaint-transition'),
     path('api/complaints/', submit_complaint),
     path('api/complaints/track/', track_complaint),
     path('api/complaints/recovery/', recovery_request),

@@ -12,15 +12,15 @@
 
 .council-editor .ql-container {
   font-family: inherit;
-  font-size: 16px;
+  font-size: 14px;
   border-radius: 0 0 8px 8px;
   background: #fff;
   color: #334155;
 }
 
 .council-editor .ql-editor {
-  min-height: 320px;
-  line-height: 1.9;
+  min-height: 220px;
+  line-height: 1.8;
   direction: rtl;
   text-align: right;
   overflow-wrap: anywhere;
@@ -30,8 +30,8 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px 12px;
-  padding: 10px;
+  gap: 5px 9px;
+  padding: 7px;
   border-radius: 8px 8px 0 0;
   background: #f8fafc;
   direction: rtl;

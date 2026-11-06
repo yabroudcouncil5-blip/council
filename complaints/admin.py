@@ -1,11 +1,13 @@
 from django import forms
 from django.contrib import admin
 from django.shortcuts import redirect
-from django.urls import path
+from django.template.loader import render_to_string
+from django.urls import path, reverse
 from django.utils.html import format_html
-from unfold.admin import ModelAdmin, TabularInline
+from unfold.admin import ModelAdmin, StackedInline, TabularInline
 from unfold.widgets import UnfoldAdminSelectWidget, UnfoldAdminTextareaWidget
 from core.admin_widgets import SelectionOnlyRelatedFieldsMixin
+from .workflow import can_review, complaints_for
 
 from .models import (
     Complaint, ComplaintAssignment, AssignmentAction, ComplaintAttachment,
@@ -55,7 +57,8 @@ class CouncilAdmin(SelectionOnlyRelatedFieldsMixin, ModelAdmin):
 
 class HistoryInline(TabularInline):
     model = ComplaintStatusHistory
-    fields = ('status', 'public_message', 'actor', 'created_at')
+    template = 'complaints/admin/history_inline.html'
+    fields = ('stage', 'public_message', 'actor', 'created_at')
     readonly_fields = fields
     extra = 0
     can_delete = False
@@ -65,11 +68,39 @@ class HistoryInline(TabularInline):
     def has_add_permission(self, request, obj=None):
         return False
 
+    def has_view_permission(self, request, obj=None):
+        visible = complaints_for(request.user)
+        return visible.filter(pk=obj.pk).exists() if obj else (can_review(request.user) or visible.exists())
 
-class AttachmentInline(SelectionOnlyRelatedFieldsMixin, TabularInline):
-    model = ComplaintAttachment
+    @admin.display(description='المرحلة')
+    def stage(self, obj):
+        return dict(Complaint.STATUS).get(obj.status, 'تحديث الحالة')
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('actor').order_by('created_at', 'pk')
+
+
+class CompactComplaintInline(SelectionOnlyRelatedFieldsMixin, StackedInline):
+    template = 'complaints/admin/compact_inline.html'
     extra = 0
     can_delete = False
+
+
+class AttachmentInlineForm(forms.ModelForm):
+    visibility = forms.ChoiceField(
+        label='نطاق الظهور',
+        choices=(('internal', 'داخلي — للمراجعة فقط'), ('public', 'للمواطن بعد اعتماد النشر')),
+        widget=UnfoldAdminSelectWidget,
+    )
+
+    class Meta:
+        model = ComplaintAttachment
+        fields = '__all__'
+
+
+class AttachmentInline(CompactComplaintInline):
+    model = ComplaintAttachment
+    form = AttachmentInlineForm
     fields = ('preview', 'file', 'original_name', 'source', 'visibility', 'uploaded_by', 'uploaded_at')
     readonly_fields = ('preview', 'original_name', 'uploaded_by', 'uploaded_at')
     verbose_name = 'مرفق ودليل'
@@ -79,13 +110,13 @@ class AttachmentInline(SelectionOnlyRelatedFieldsMixin, TabularInline):
     def preview(self, obj):
         if not obj or not obj.file:
             return '—'
-        url = obj.file.url
-        name = (obj.original_name or '').lower()
+        url = reverse('complaint-evidence', args=[obj.pk])
+        name = (obj.original_name or obj.file.name).lower()
         if name.endswith(('.jpg', '.jpeg', '.png', '.webp', '.gif')):
             return format_html(
                 '<a href="{}" target="_blank" rel="noopener" class="dashboard-attachment-preview">'
                 '<img src="{}" alt="{}" loading="lazy" /></a>',
-                url, url, obj.original_name,
+                url, url + '?preview=1', obj.original_name,
             )
         if name.endswith('.pdf'):
             return format_html(
@@ -97,142 +128,54 @@ class AttachmentInline(SelectionOnlyRelatedFieldsMixin, TabularInline):
     def has_add_permission(self, request, obj=None):
         return request.user.is_superuser and super().has_add_permission(request, obj)
 
-class AssignmentInlineForm(forms.ModelForm):
-    status = forms.ChoiceField(label='الحالة', choices=ASSIGNMENT_STATES, widget=UnfoldAdminSelectWidget)
-    priority = forms.ChoiceField(label='الأولوية', choices=ASSIGNMENT_PRIORITIES, widget=UnfoldAdminSelectWidget)
-
-    class Meta:
-        model = ComplaintAssignment
-        fields = ('department', 'status', 'priority', 'due_at')
-        widgets = {'due_at': forms.DateTimeInput(attrs={'type': 'datetime-local'}, format='%Y-%m-%dT%H:%M')}
 
 
-class AssignmentInline(SelectionOnlyRelatedFieldsMixin, TabularInline):
-    model = ComplaintAssignment
-    form = AssignmentInlineForm
-    extra = 0
-    can_delete = False
-    fields = ('department', 'status', 'priority', 'due_at', 'assigned_at')
-    readonly_fields = ('assigned_at',)
-    verbose_name = 'إحالة إلى قسم'
-    verbose_name_plural = 'الإحالات إلى الأقسام'
-
-class ReviewInlineForm(forms.ModelForm):
-    assignment = forms.ModelChoiceField(label='الإحالة المرتبطة', queryset=ComplaintAssignment.objects.none(), required=False, widget=UnfoldAdminSelectWidget)
-    decision = forms.ChoiceField(
-        label='قرار المراجعة',
-        choices=[('', 'اختر قرار المراجعة'), *ComplaintReview.DECISIONS],
-        widget=UnfoldAdminSelectWidget,
-    )
-
-    class Meta:
-        model = ComplaintReview
-        fields = ('assignment', 'decision', 'reason')
-        widgets = {
-            'decision': UnfoldAdminSelectWidget,
-            'reason': UnfoldAdminTextareaWidget(attrs={'rows': 3, 'class': 'dashboard-review-notes'}),
-        }
-
-
-class ReviewInline(SelectionOnlyRelatedFieldsMixin, TabularInline):
-    model = ComplaintReview
-    form = ReviewInlineForm
-    extra = 0
-    can_delete = False
-    fields = ('assignment', 'decision', 'reason', 'reviewer', 'created_at')
-    readonly_fields = ('reviewer', 'created_at')
-    verbose_name = 'مراجعة'
-    verbose_name_plural = 'سجل المراجعات'
-
-    def get_formset(self, request, obj=None, **kwargs):
-        BaseFormSet = super().get_formset(request, obj, **kwargs)
-        assignments = ComplaintAssignment.objects.filter(complaint=obj).order_by('-assigned_at') if obj else ComplaintAssignment.objects.none()
-
-        class CurrentReviewerFormSet(BaseFormSet):
-            def add_fields(self, form, index):
-                super().add_fields(form, index)
-                form.fields['assignment'].queryset = assignments
-
-            def save_new(self, form, commit=True):
-                form.instance.reviewer = request.user
-                instance = super().save_new(form, commit=commit)
-                if commit and instance:
-                    status_map = {'approved': 'completed', 'closed': 'completed', 'returned': 'assigned', 'additional_assignment': 'transferred'}
-                    next_status = status_map.get(instance.decision)
-                    if instance.assignment and instance.decision == 'approved':
-                        instance.assignment.status = 'approved'
-                        instance.assignment.save(update_fields=('status',))
-                    elif instance.assignment and instance.decision == 'returned':
-                        instance.assignment.status = 'returned'
-                        instance.assignment.save(update_fields=('status',))
-                    if next_status:
-                        complaint = instance.complaint
-                        complaint.status = next_status
-                        complaint.save(update_fields=('status', 'updated_at'))
-                        ComplaintStatusHistory.objects.create(
-                            complaint=complaint,
-                            status=next_status,
-                            actor=request.user,
-                            public_message={
-                                'completed': 'تم اعتماد المعالجة وإغلاق الشكوى',
-                                'assigned': 'أعيدت الشكوى للقسم لاستكمال المعالجة',
-                                'transferred': 'أحيلت الشكوى إلى قسم آخر لاستكمال المعالجة',
-                            }[next_status],
-                        )
-                    if request.user.is_superuser and instance.decision == 'approved' and complaint.status == 'completed':
-                        from django.utils import timezone
-                        ComplaintPublication.objects.update_or_create(
-                            complaint=complaint,
-                            defaults={
-                                'summary': instance.reason or 'تمت معالجة الشكوى واعتمادها.',
-                                'visibility': 'tracked',
-                                'approved': True,
-                                'approved_by': request.user,
-                                'published_at': timezone.now(),
-                            },
-                        )
-                        ComplaintStatusHistory.objects.create(
-                            complaint=complaint,
-                            status='completed',
-                            actor=request.user,
-                            public_message='تم اعتماد الشكوى ونشر النتيجة للمواطن',
-                        )
-                return instance
-
-        return CurrentReviewerFormSet
-
-
-class PublicationInline(SelectionOnlyRelatedFieldsMixin, TabularInline):
-    model = ComplaintPublication
-    extra = 0
-    max_num = 1
-    can_delete = False
-    fields = ('summary', 'visibility', 'approved', 'approved_by', 'published_at')
-    readonly_fields = ('approved_by', 'published_at')
-    verbose_name = 'تأكيد النشر للمواطن'
-    verbose_name_plural = 'تأكيد النشر للمواطن'
-
+class WorkflowRecordInline(CompactComplaintInline):
+    """Assignment/review records are an audit trail, not another status editor."""
     def has_add_permission(self, request, obj=None):
-        return bool(request.user.is_superuser and obj and obj.status in {'completed', 'closed'} and super().has_add_permission(request, obj))
+        return False
 
     def has_change_permission(self, request, obj=None):
-        return request.user.is_superuser and super().has_change_permission(request, obj)
+        return False
 
-    def save_formset(self, request, form, formset, change):
-        instances = formset.save(commit=False)
-        from django.utils import timezone
-        for instance in instances:
-            instance.approved = True
-            instance.approved_by = request.user
-            instance.published_at = timezone.now()
-            instance.save()
-            ComplaintStatusHistory.objects.create(
-                complaint=instance.complaint,
-                status=instance.complaint.status,
-                actor=request.user,
-                public_message='تم نشر نتيجة المعالجة للمواطن',
-            )
-        formset.save_m2m()
+    def has_view_permission(self, request, obj=None):
+        visible = complaints_for(request.user)
+        return visible.filter(pk=obj.pk).exists() if obj else (can_review(request.user) or visible.exists())
+
+
+class AssignmentRecordInline(WorkflowRecordInline):
+    model = ComplaintAssignment
+    fields = readonly_fields = ('department', 'stage', 'priority_label', 'due_at', 'assigned_at')
+    verbose_name = 'إحالة'
+    verbose_name_plural = 'سجل إحالات الأقسام'
+
+    @admin.display(description='المرحلة')
+    def stage(self, obj):
+        return dict(ASSIGNMENT_STATES).get(obj.status, obj.status)
+
+    @admin.display(description='الأولوية')
+    def priority_label(self, obj):
+        return dict(ASSIGNMENT_PRIORITIES).get(obj.priority, obj.priority)
+
+
+class ReviewRecordInline(WorkflowRecordInline):
+    model = ComplaintReview
+    fields = readonly_fields = ('assignment', 'decision', 'reason', 'reviewer', 'created_at')
+    verbose_name = 'قرار مراجعة'
+    verbose_name_plural = 'سجل قرارات المراجعة — ملاحظات داخلية'
+
+
+class EvidenceRecordInline(WorkflowRecordInline):
+    model = ComplaintAttachment
+    preview = AttachmentInline.preview
+    fields = readonly_fields = ('preview', 'original_name', 'source', 'audience', 'uploaded_by', 'uploaded_at')
+    verbose_name_plural = 'أدلة المواطن وفريق البلدية'
+
+    @admin.display(description='نطاق الظهور')
+    def audience(self, obj):
+        publication = getattr(obj.complaint, 'publication', None)
+        visible = obj.source == 'staff' and obj.visibility == 'public' and publication and publication.approved and obj.complaint.status in {'completed', 'closed'}
+        return 'منشور مع النتيجة المعتمدة' if visible else 'داخلي — للمراجعة فقط'
 
 
 @admin.register(Complaint)
@@ -244,12 +187,48 @@ class ComplaintAdmin(CouncilAdmin):
     list_select_related = ('category',)
     readonly_fields = ('reference', 'status', 'submitted_at', 'updated_at', 'staff_actions_review')
     fieldsets = (
-        ('بيانات الشكوى', {'fields': ('reference', 'title', 'description', ('category', 'status'), 'location')}),
-        ('بيانات التواصل مع المواطن', {'fields': ('name', ('phone', 'email')), 'description': 'بيانات داخلية؛ لا تُنشر على الموقع العام.'}),
+        ('بيانات الشكوى', {'fields': (('reference', 'status'), 'title', 'description', ('category', 'location'))}),
+        ('بيانات التواصل مع المواطن', {'fields': (('name', 'phone', 'email'),), 'description': 'بيانات داخلية؛ لا تُنشر على الموقع العام.'}),
         ('مراجعة إجراءات الفريق والأدلة', {'fields': ('staff_actions_review',), 'description': 'راجع الملاحظات والأدلة قبل اعتماد الشكوى أو إعادتها للقسم.'}),
-        ('التواريخ', {'fields': ('submitted_at', 'updated_at'), 'classes': ('collapse',)}),
+        ('التواريخ', {'fields': (('submitted_at', 'updated_at'),), 'classes': ('collapse',)}),
     )
-    inlines = (AssignmentInline, ReviewInline, AttachmentInline, HistoryInline)
+    inlines = (AssignmentRecordInline, ReviewRecordInline, EvidenceRecordInline, HistoryInline)
+    change_form_outer_before_template = 'complaints/admin/workflow_status.html'
+    change_form_outer_after_template = 'complaints/admin/workflow_actions.html'
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).filter(pk__in=complaints_for(request.user).values('pk'))
+
+    def has_view_permission(self, request, obj=None):
+        return bool(request.user.is_staff and (can_review(request.user) or
+                    (complaints_for(request.user).filter(pk=obj.pk).exists() if obj else complaints_for(request.user).exists())))
+
+    def has_change_permission(self, request, obj=None):
+        return can_review(request.user)
+
+    def has_module_permission(self, request):
+        return self.has_view_permission(request)
+
+    def get_readonly_fields(self, request, obj=None):
+        if not can_review(request.user):
+            return (*self.readonly_fields, 'title', 'description', 'category', 'location', 'name', 'phone', 'email')
+        return self.readonly_fields
+
+    def changeform_view(self, request, object_id=None, form_url='', extra_context=None):
+        from .workflow_forms import ComplaintWorkflowForm
+        from .workflow import available_actions
+        obj = self.get_object(request, object_id) if object_id else None
+        extra_context = dict(extra_context or {})
+        if obj and self.has_view_permission(request, obj):
+            extra_context.update({
+                'workflow_complaint': obj,
+                'workflow_form': ComplaintWorkflowForm(complaint=obj, user=request.user),
+                'workflow_actions': available_actions(request.user, obj),
+                'workflow_reviewer': can_review(request.user),
+                'workflow_latest_review': obj.reviews.select_related('reviewer', 'assignment__department').order_by('-created_at', '-pk').first(),
+                'workflow_evidence': obj.attachments.filter(source='staff'),
+            })
+        return super().changeform_view(request, object_id, form_url, extra_context)
 
     def has_add_permission(self, request):
         # Public submission creates and returns the complaint reference.
@@ -265,17 +244,14 @@ class ComplaintAdmin(CouncilAdmin):
         rows = []
         for action in actions:
             evidence = obj.attachments.filter(uploaded_by=action.actor, source='staff').order_by('-uploaded_at')
-            evidence_links = [format_html('<a href="{}" target="_blank" rel="noopener">{}</a>', item.file.url, item.original_name) for item in evidence if item.file]
-            rows.append(format_html(
-                '<article class="dashboard-action-review"><strong>{}</strong><span>{} · {}</span><p>{}</p>{}<p>{}</p></article>',
-                action.assignment.department.name,
-                action.actor.get_full_name() or action.actor.username,
-                action.created_at.strftime('%Y/%m/%d %H:%M'),
-                action.internal_action or 'لا توجد ملاحظات داخلية.',
-                format_html('<p>الأدلة: {}</p>', format_html(' · '.join(str(link) for link in evidence_links))) if evidence_links else '',
-                action.public_message or 'لا توجد رسالة عامة.',
-            ))
-        return format_html(''.join(str(row) for row in rows))
+            rows.append({
+                'action': action,
+                'evidence': [
+                    {'attachment': item, 'preview': AttachmentInline.preview(self, item)}
+                    for item in evidence if item.file
+                ],
+            })
+        return render_to_string('complaints/admin/staff_actions.html', {'rows': rows})
 
 
 class AssignmentForm(forms.ModelForm):
@@ -307,19 +283,23 @@ class AssignmentAdmin(CouncilAdmin):
 
     def get_urls(self):
         """Keep legacy assignment URLs from opening a confusing standalone page."""
-        urls = super().get_urls()
-
         def go_to_complaints(request, object_id=None):
             target = 'admin:complaints_complaint_changelist'
             if object_id:
-                target = 'admin:complaints_complaint_change'
-                return redirect(target, object_id)
+                assignment = self.get_object(request, object_id)
+                if assignment and self.has_view_or_change_permission(request, assignment):
+                    return redirect('admin:complaints_complaint_change', assignment.complaint_id)
             return redirect(target)
 
+        view = self.admin_site.admin_view(go_to_complaints)
+        prefix = f'{self.opts.app_label}_{self.opts.model_name}'
         return [
-            path('', go_to_complaints, name='complaintassignment_changelist'),
-            path('<path:object_id>/change/', go_to_complaints, name='complaintassignment_change'),
-            *urls,
+            path('', view, name=f'{prefix}_changelist'),
+            path('add/', view, name=f'{prefix}_add'),
+            path('<path:object_id>/change/', view, name=f'{prefix}_change'),
+            path('<path:object_id>/delete/', view, name=f'{prefix}_delete'),
+            path('<path:object_id>/history/', view, name=f'{prefix}_history'),
+            path('<path:object_id>/', view),
         ]
 
     form = AssignmentForm
@@ -364,8 +344,31 @@ class ReviewForm(forms.ModelForm):
         return data
 
 
+class WorkflowAuditAdmin(CouncilAdmin):
+    """Workflow changes are made once, inside the complaint's action panel."""
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def get_model_perms(self, request):
+        return {}
+
+    def has_module_permission(self, request):
+        return False
+
+    def get_queryset(self, request):
+        queryset = super().get_queryset(request)
+        field = 'assignment__complaint__in' if self.model is AssignmentAction else 'complaint__in'
+        return queryset.filter(**{field: complaints_for(request.user)})
+
+
 @admin.register(ComplaintReview)
-class ReviewAdmin(CouncilAdmin):
+class ReviewAdmin(WorkflowAuditAdmin):
     form = ReviewForm
     list_display = ('complaint', 'assignment', 'decision', 'reviewer', 'created_at')
     list_filter = ('decision', 'created_at')
@@ -384,7 +387,7 @@ class ReviewAdmin(CouncilAdmin):
 
 
 @admin.register(AssignmentAction)
-class ActionAdmin(CouncilAdmin):
+class ActionAdmin(WorkflowAuditAdmin):
     list_display = ('assignment', 'actor', 'created_at')
     search_fields = ('assignment__complaint__reference', 'internal_action')
     autocomplete_fields = ('assignment', 'actor')
@@ -396,7 +399,7 @@ class ActionAdmin(CouncilAdmin):
 
 
 @admin.register(ComplaintAttachment)
-class AttachmentAdmin(CouncilAdmin):
+class AttachmentAdmin(WorkflowAuditAdmin):
     list_display = ('original_name', 'complaint', 'visibility', 'uploaded_at')
     search_fields = ('original_name', 'complaint__reference')
     list_filter = ('visibility',)
@@ -414,7 +417,7 @@ class RecoveryAdmin(CouncilAdmin):
 
 
 @admin.register(ComplaintPublication)
-class PublicationAdmin(CouncilAdmin):
+class PublicationAdmin(WorkflowAuditAdmin):
     list_display = ('complaint', 'visibility', 'approved', 'published_at')
     list_filter = ('visibility', 'approved')
     search_fields = ('complaint__reference', 'summary')

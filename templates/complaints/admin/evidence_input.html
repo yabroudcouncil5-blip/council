@@ -1,0 +1,5 @@
+<div class="dashboard-evidence-picker" x-data="{ names: '' }">
+  <input type="file" name="{{ widget.name }}" class="dashboard-evidence-native" {% include 'django/forms/widgets/attrs.html' %} x-on:change="names = Array.from($event.target.files).map(file => file.name).join('، ')">
+  <label for="{{ widget.attrs.id }}" class="dashboard-action">اختر الصور أو ملفات PDF</label>
+  <span x-text="names || 'لم يتم اختيار ملفات بعد'">لم يتم اختيار ملفات بعد</span>
+</div>

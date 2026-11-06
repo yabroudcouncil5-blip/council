@@ -45,35 +45,146 @@ class ComplaintFlowTests(TestCase):
         self.assertEqual(AssignmentAction.objects.filter(assignment=assignment).count(), 1)
 
     def test_multi_department_assignment_and_closure_guard(self):
-        user=User.objects.create_user('reviewer', password='pass'); user.is_staff=True; user.save(); d1=Department.objects.create(name='طرق'); d2=Department.objects.create(name='إنارة'); client=Client(); client.force_login(user)
-        response=client.post('/api/complaints/', {'title':'مشكلة مشتركة','description':'تفاصيل'}); complaint=Complaint.objects.get(reference=response.json()['reference'])
-        a1=client.post('/staff/assign/', {'complaint_id':complaint.id,'department_id':d1.id}).json()['assignment_id']; a2=client.post('/staff/assign/', {'complaint_id':complaint.id,'department_id':d2.id}).json()['assignment_id']
-        self.assertNotEqual(a1,a2); self.assertEqual(client.post('/staff/final-review/', {'complaint_id':complaint.id,'assignment_id':a1,'decision':'approved'}).status_code, 200); self.assertEqual(client.post('/staff/final-review/', {'complaint_id':complaint.id,'decision':'closed'}).status_code, 409)
+        from .workflow import transition, WorkflowError
+        user = User.objects.create_superuser('multi-reviewer', password='test-password')
+        complaint = Complaint.objects.create(reference='YBC-MULTI-1', title='خدمة', description='تفاصيل')
+        d1 = Department.objects.create(name='طرق')
+        d2 = Department.objects.create(name='إنارة')
+        _, a1 = transition(complaint.pk, user, 'assign', department_id=d1.pk)
+        _, a2 = transition(complaint.pk, user, 'assign', department_id=d2.pk)
+        transition(complaint.pk, user, 'submit', assignment_id=a1.pk, internal_note='أصلح الطريق')
+        transition(complaint.pk, user, 'submit', assignment_id=a2.pk, internal_note='أصلحت الإنارة')
+        transition(complaint.pk, user, 'approved', assignment_id=a1.pk, public_message='تم الإصلاح', confirm=True)
+        complaint.refresh_from_db()
+        self.assertEqual(complaint.status, 'final_review')
+        with self.assertRaises(WorkflowError):
+            transition(complaint.pk, user, 'publish', public_message='تم الإصلاح', confirm=True)
+        transition(complaint.pk, user, 'approved', assignment_id=a2.pk, public_message='اكتمل العمل', confirm=True)
+        complaint.refresh_from_db()
+        self.assertEqual(complaint.status, 'completed')
 
     def test_public_resolutions_only_include_approved_completed_items(self):
-        user=User.objects.create_superuser('reviewer2', password='pass', email='reviewer2@example.com'); client=Client(); client.force_login(user); d=Department.objects.create(name='خدمات')
-        response=client.post('/api/complaints/', {'title':'خدمة','description':'تفاصيل'}); complaint=Complaint.objects.get(reference=response.json()['reference']); a=client.post('/staff/assign/', {'complaint_id':complaint.id,'department_id':d.id}).json()['assignment_id']; client.post('/staff/final-review/', {'complaint_id':complaint.id,'assignment_id':a,'decision':'approved'}); client.post('/staff/final-review/', {'complaint_id':complaint.id,'decision':'closed'}); complaint.refresh_from_db(); self.assertEqual(client.post('/staff/publish/', {'complaint_id':complaint.id,'summary':'تم الحل','visibility':'public'}).status_code, 201); self.assertEqual(client.get('/api/public/resolutions/').status_code, 200)
+        from .models import ComplaintPublication
+        complaint = Complaint.objects.create(reference='YBC-PUBLIC-1', title='خدمة', description='تفاصيل', status='completed')
+        publication = ComplaintPublication.objects.create(complaint=complaint, approved=True, visibility='public', summary='تم الحل')
+        self.assertEqual(len(self.client.get('/api/public/resolutions/').json()['results']), 1)
+        publication.approved = False
+        publication.save()
+        self.assertEqual(self.client.get('/api/public/resolutions/').json()['results'], [])
 
-    def test_closed_status_is_hidden_until_superadmin_publishes(self):
-        from .models import ComplaintStatusHistory, ComplaintPublication
-        complaint = Complaint.objects.create(reference='YBC-2026-900001', title='إنارة', description='تفاصيل', tracking_hash='unused', status='completed')
+    def test_current_stage_is_shared_even_before_legacy_result_is_published(self):
+        from .models import ComplaintPublication
+        complaint = Complaint.objects.create(reference='YBC-2026-900001', title='إنارة', description='تفاصيل', status='completed')
         ComplaintStatusHistory.objects.create(complaint=complaint, status='completed', public_message='تمت المعالجة')
-        self.assertEqual(self.client.post('/api/complaints/track/', {'reference': complaint.reference}).json()['status'], 'تم اتخاذ الإجراء، بانتظار الاعتماد')
-        staff = User.objects.create_user('staff-publisher', password='pass', is_staff=True)
-        client = Client(); client.force_login(staff)
-        self.assertEqual(client.post('/staff/publish/', {'complaint_id': complaint.id, 'summary': 'تم الحل', 'visibility': 'tracked'}).status_code, 403)
-        admin = User.objects.create_superuser('publisher', password='pass', email='publisher@example.com')
-        client.force_login(admin)
-        self.assertEqual(client.post('/staff/publish/', {'complaint_id': complaint.id, 'summary': 'تم الحل', 'visibility': 'tracked'}).status_code, 201)
-        result = client.post('/api/complaints/track/', {'reference': complaint.reference}).json()
-        self.assertEqual(result['status'], 'أغلقت بعد الاعتماد')
-        self.assertEqual(ComplaintPublication.objects.get(complaint=complaint).approved_by, admin)
+        before = self.client.get('/api/complaints/track/', {'reference': complaint.reference}).json()
+        self.assertEqual(before['status'], complaint.get_status_display())
+        self.assertEqual(before['timeline'][-1]['status_code'], complaint.status)
+        staff = User.objects.create_user('staff-publisher', is_staff=True)
+        self.client.force_login(staff)
+        self.assertEqual(self.client.post('/staff/publish/', {'complaint_id': complaint.pk, 'summary': 'تم الحل', 'confirm': 'on'}).status_code, 403)
+        reviewer = User.objects.create_superuser('publisher', password='test-password')
+        self.client.force_login(reviewer)
+        self.assertEqual(self.client.post('/staff/publish/', {'complaint_id': complaint.pk, 'summary': 'تم الحل', 'confirm': 'on'}).status_code, 201)
+        self.assertEqual(ComplaintPublication.objects.get(complaint=complaint).approved_by, reviewer)
+        self.assertEqual(self.client.get('/api/complaints/track/', {'reference': complaint.reference}).json()['timeline'][-1]['public_message'], 'تم الحل')
 
     def test_staff_report_is_protected(self):
         self.assertEqual(Client().get('/staff/reports/').status_code, 302)
 
     def test_staff_dashboard_requires_staff(self):
         user=User.objects.create_user('resident',password='pass'); client=Client(); client.force_login(user); self.assertEqual(client.get('/staff/dashboard/').status_code, 403)
+
+
+class ComplaintAdminNavigationTests(TestCase):
+    def test_old_workspace_uses_the_normal_complaint_pages(self):
+        user = User.objects.create_superuser('workspace-admin', password='test-password')
+        complaint = Complaint.objects.create(reference='YBC-WORKSPACE-1', title='إنارة', description='تفاصيل')
+        self.client.force_login(user)
+        self.assertRedirects(self.client.get('/staff/complaints/'), '/admin/complaints/complaint/', fetch_redirect_response=False)
+        self.assertRedirects(
+            self.client.get('/staff/complaints/', {'complaint': complaint.pk}),
+            f'/admin/complaints/complaint/{complaint.pk}/change/', fetch_redirect_response=False,
+        )
+
+    def test_department_staff_dashboard_includes_department_level_assignments(self):
+        from .models import ComplaintAssignment
+        user = User.objects.create_user('department-dashboard-staff', is_staff=True)
+        department = Department.objects.create(name='خدمات الحي')
+        department.members.add(user)
+        complaint = Complaint.objects.create(reference='YBC-DEPARTMENT-1', title='إنارة', description='تفاصيل', status='assigned')
+        ComplaintAssignment.objects.create(complaint=complaint, department=department)
+        self.client.force_login(user)
+        response = self.client.get('/staff/dashboard/')
+        self.assertContains(response, complaint.reference)
+        self.assertContains(response, complaint.get_status_display())
+        self.assertContains(response, 'dashboard-account-menu')
+        self.assertContains(response, f'/admin/complaints/complaint/{complaint.pk}/change/')
+
+    def test_complaint_action_panel_saves_deadline_review_and_publication(self):
+        from .models import ComplaintAssignment, AssignmentAction, ComplaintPublication
+        from django.utils import timezone
+        user = User.objects.create_superuser('panel-admin', password='test-password')
+        complaint = Complaint.objects.create(reference='YBC-INLINE-1', title='إنارة', description='تفاصيل')
+        department = Department.objects.create(name='الإنارة')
+        self.client.force_login(user)
+        url = f'/staff/complaints/{complaint.pk}/action/'
+        def post(action, **values):
+            complaint.refresh_from_db()
+            return self.client.post(url, {'action': action, 'version': complaint.updated_at.isoformat(), **values})
+        self.assertEqual(post('assign', department=department.pk, due_at='2026-11-06T12:30').status_code, 302)
+        assignment = ComplaintAssignment.objects.get(complaint=complaint)
+        self.assertEqual((timezone.localtime(assignment.due_at).hour, timezone.localtime(assignment.due_at).minute), (12, 30))
+        self.assertEqual(post('submit', internal_note='تم الإصلاح').status_code, 302)
+        self.assertTrue(AssignmentAction.objects.filter(assignment=assignment).exists())
+        self.assertEqual(post('approved', internal_note='تمت مراجعة الأدلة', public_message='اكتمل إصلاح الإنارة', confirm='on').status_code, 302)
+        complaint.refresh_from_db()
+        assignment.refresh_from_db()
+        self.assertEqual(complaint.status, 'completed')
+        self.assertEqual(assignment.status, 'approved')
+        self.assertEqual(complaint.reviews.get().reviewer_id, user.pk)
+        self.assertTrue(ComplaintPublication.objects.get(complaint=complaint).approved)
+
+    def test_legacy_assignment_links_open_the_matching_complaint(self):
+        from .models import ComplaintAssignment
+        admin_user = User.objects.create_superuser('legacy-assignment-admin', password='test-password')
+        complaint = Complaint.objects.create(
+            pk=41, reference='YBC-ADMIN-41', title='إنارة', description='تفاصيل',
+        )
+        department = Department.objects.create(name='الإنارة')
+        assignment = ComplaintAssignment.objects.create(pk=7, complaint=complaint, department=department)
+        self.client.force_login(admin_user)
+        for suffix in ('change/', 'history/', 'delete/', ''):
+            with self.subTest(suffix=suffix):
+                self.assertRedirects(
+                    self.client.get(f'/admin/complaints/complaintassignment/{assignment.pk}/{suffix}'),
+                    f'/admin/complaints/complaint/{complaint.pk}/change/',
+                    fetch_redirect_response=False,
+                )
+        for suffix in ('', 'add/'):
+            self.assertRedirects(
+                self.client.get('/admin/complaints/complaintassignment/' + suffix),
+                '/admin/complaints/complaint/', fetch_redirect_response=False,
+            )
+        self.assertTrue(ComplaintAssignment.objects.filter(pk=assignment.pk).exists())
+
+    def test_legacy_assignment_redirects_require_admin_login(self):
+        response = self.client.get('/admin/complaints/complaintassignment/7/change/')
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response.url.startswith('/admin/login/?next='))
+
+    def test_complaint_history_has_readable_arabic_stages(self):
+        admin_user = User.objects.create_superuser('history-admin', password='test-password')
+        complaint = Complaint.objects.create(reference='YBC-HISTORY-1', title='إنارة', description='تفاصيل')
+        ComplaintStatusHistory.objects.create(
+            complaint=complaint, status='completed', public_message='تم التحقق من الإصلاح', actor=admin_user,
+        )
+        self.client.force_login(admin_user)
+        response = self.client.get(f'/admin/complaints/complaint/{complaint.pk}/change/')
+        self.assertContains(response, 'dashboard-history-table')
+        self.assertContains(response, 'أغلقت بعد الاعتماد')
+        self.assertContains(response, 'تم التحقق من الإصلاح')
+        self.assertNotContains(response, 'ComplaintStatusHistory object')
+
 
 class StaffReportTests(TestCase):
     def setUp(self):
@@ -159,7 +270,7 @@ class PublicComplaintPagesTests(TestCase):
         )
         response = self.client.post('/api/complaints/track/', {'reference': complaint.reference})
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(set(response.json()), {'reference', 'status', 'submitted_at', 'timeline'})
+        self.assertEqual(set(response.json()), {'reference', 'status', 'status_code', 'submitted_at', 'timeline'})
         self.assertNotContains(response, 'Private')
         self.assertNotContains(response, 'private@example.com')
 

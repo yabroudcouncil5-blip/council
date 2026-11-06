@@ -7,11 +7,13 @@ def can_view_dashboard(request):
 
 
 def can_view_reports(request):
-    return _has_any(request.user, 'complaints.view_complaintassignment', 'complaints.view_complaint')
+    from complaints.workflow import can_review
+    return can_review(request.user) or _has_any(request.user, 'complaints.view_complaintassignment', 'complaints.view_complaint')
 
 
 def can_view_complaints(request):
-    return _has_any(request.user, 'complaints.view_complaint', 'complaints.add_complaint')
+    from complaints.workflow import can_review, complaints_for
+    return can_review(request.user) or complaints_for(request.user).exists()
 
 
 def can_view_assignments(request):
