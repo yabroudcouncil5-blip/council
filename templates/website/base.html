@@ -11,12 +11,13 @@
   <link rel="stylesheet" href="{% static 'website/site.css' %}">
   <link rel="stylesheet" href="{% static 'core/public.css' %}">
   <link rel="stylesheet" href="{% static 'website/content.css' %}">
+  <link rel="stylesheet" href="{% static 'website/controls.css' %}">
   <script src="{% static 'core/tracking.js' %}" defer></script>
   {% block extra_head %}{% endblock %}
 </head>
 <body class="{% block body_class %}{% endblock %}">
   <a class="skip-link" href="#main-content">انتقل إلى المحتوى</a>
-  <div class="site-top"><div class="shell"><span>يبرود، مدينة تجمعنا</span><a href="/staff/login/">دخول الموظفين <span aria-hidden="true">↗</span></a></div></div>
+  <div class="site-top"><div class="shell"><span>يبرود، مدينة تجمعنا</span><a href="/staff/login/">دخول الموظفين {% include 'website/includes/icon.html' with icon='arrow-up-right' %}</a></div></div>
   <header class="site-header">
     <div class="shell header-inner">
       <a class="brand" href="/" aria-label="{{ council.name|default:'بلدية يبرود' }} — الرئيسية">
@@ -27,13 +28,13 @@
         <a href="/" {% if request.path == '/' %}aria-current="page"{% endif %}>الرئيسية</a>
         <a href="/about/" {% if request.path == '/about/' %}aria-current="page"{% endif %}>عن المدينة</a><a href="/departments/">الأقسام والخدمات</a><a href="/council/">مجلس المدينة</a><a href="/news/">الأخبار</a><a href="/contact/">تواصل معنا</a>
       </nav>
-      <a class="button header-action" href="/complaints/submit/">تقديم شكوى <span aria-hidden="true">↖</span></a>
-      <details class="mobile-menu"><summary aria-label="فتح القائمة">القائمة <span aria-hidden="true">☰</span></summary><nav aria-label="القائمة الرئيسية للجوال"><a href="/">الرئيسية</a><a href="/about/">عن المدينة</a><a href="/departments/">الأقسام والخدمات</a><a href="/council/">مجلس المدينة</a><a href="/news/">الأخبار</a><a href="/contact/">تواصل معنا</a><a href="/complaints/submit/">تقديم شكوى</a></nav></details>
+      <a class="button header-action" href="/complaints/submit/">تقديم شكوى {% include 'website/includes/icon.html' with icon='arrow-up-left' %}</a>
+      <details class="mobile-menu"><summary>القائمة {% include 'website/includes/icon.html' with icon='menu' icon_class='menu-open-icon' %}{% include 'website/includes/icon.html' with icon='close' icon_class='menu-close-icon' %}</summary><nav aria-label="القائمة الرئيسية للجوال"><a href="/">الرئيسية</a><a href="/about/">عن المدينة</a><a href="/departments/">الأقسام والخدمات</a><a href="/council/">مجلس المدينة</a><a href="/news/">الأخبار</a><a href="/contact/">تواصل معنا</a><a href="/complaints/submit/">تقديم شكوى</a></nav></details>
     </div>
   </header>
   <main id="main-content" class="{% block main_class %}shell inner-page{% endblock %}">{% block content %}{% endblock %}</main>
   <footer class="site-footer">
-    <div class="shell footer-main"><div class="footer-brand"><span class="footer-kicker">مدينة تجمعنا. خدمة تقرّبنا.</span><h2>{{ council.name|default:'بلدية يبرود' }}</h2><p>نعمل مع أهل المدينة من أجل خدمات أفضل،<br>ومدينة نعتزّ بها كل يوم.</p></div><div><h3>روابط تهمّك</h3><a href="/services/">الخدمات البلدية</a><a href="/departments/">أقسام البلدية</a><a href="/#tracking">تتبع شكوى</a><a href="/news/">الأخبار والإعلانات</a></div><div><h3>نحن هنا لمساعدتك</h3><p>{{ council.address|default:'يبرود · ريف دمشق · سوريا' }}</p>{% if council.phone %}<a href="tel:{{ council.phone }}"><bdi>{{ council.phone }}</bdi></a>{% endif %}{% if council.email %}<a href="mailto:{{ council.email }}"><bdi>{{ council.email }}</bdi></a>{% endif %}<a href="/contact/">جميع وسائل التواصل <span aria-hidden="true">←</span></a></div></div>
+    <div class="shell footer-main"><div class="footer-brand"><span class="footer-kicker">مدينة تجمعنا. خدمة تقرّبنا.</span><h2>{{ council.name|default:'بلدية يبرود' }}</h2><p>نعمل مع أهل المدينة من أجل خدمات أفضل،<br>ومدينة نعتزّ بها كل يوم.</p></div><div><h3>روابط تهمّك</h3><a href="/services/">الخدمات البلدية</a><a href="/departments/">أقسام البلدية</a><a href="/#tracking">تتبع شكوى</a><a href="/news/">الأخبار والإعلانات</a></div><div><h3>نحن هنا لمساعدتك</h3><p>{{ council.address|default:'يبرود · ريف دمشق · سوريا' }}</p>{% if council.phone %}<a href="tel:{{ council.phone }}"><bdi>{{ council.phone }}</bdi></a>{% endif %}{% if council.email %}<a href="mailto:{{ council.email }}"><bdi>{{ council.email }}</bdi></a>{% endif %}<a href="/contact/">جميع وسائل التواصل {% include 'website/includes/icon.html' with icon='arrow-left' %}</a></div></div>
     <div class="shell footer-bottom"><span>مجلس مدينة يبرود · في خدمة المدينة وأهلها</span><a href="/staff/login/">مساحة عمل الموظفين</a></div>
   </footer>
 </body></html>

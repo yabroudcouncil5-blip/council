@@ -1,0 +1,70 @@
+/* Shared vector icons avoid platform-dependent emoji in navigation and actions. */
+.site-icon {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  vertical-align: middle;
+}
+.button .site-icon { width: 22px; height: 22px; flex-basis: 22px; }
+.mobile-menu summary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-width: 92px;
+  min-height: 44px;
+}
+.mobile-menu .menu-close-icon { display: none; }
+.mobile-menu[open] .menu-open-icon { display: none; }
+.mobile-menu[open] .menu-close-icon { display: inline-block; }
+.mobile-menu[open] summary { background: var(--green-pale); border-color: var(--teal); }
+.mobile-menu nav a { min-height: 44px; display: flex; align-items: center; }
+
+@media (max-width: 850px) {
+  .brand { min-width: 0; }
+  .brand > span:last-child { min-width: 0; white-space: normal; line-height: 1.5; }
+  .mobile-menu { flex: 0 0 auto; }
+  .mobile-menu nav {
+    width: min(300px, calc(100vw - 44px));
+    min-width: 0;
+    max-height: calc(100dvh - 140px);
+    overflow-y: auto;
+    top: calc(100% + 12px);
+  }
+}
+
+@media (max-width: 600px) {
+  .header-inner { padding-block: 12px; }
+  .brand { gap: 8px; font-size: clamp(14px, 4vw, 18px); }
+  .brand small { margin-top: 3px; line-height: 1.6; }
+  .mobile-menu summary { padding: 10px 12px; font-size: 14px; }
+  .hero-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+    width: 100%;
+  }
+  .hero-actions .button,
+  .hero-actions .text-link {
+    width: 100%;
+    min-height: 54px;
+    padding: 12px 18px;
+    justify-content: space-between;
+    gap: 16px;
+    font-size: 16px;
+    line-height: 1.7;
+    border-radius: 10px;
+  }
+  .hero-actions .text-link {
+    min-height: 48px;
+    color: var(--teal);
+    border: 1px solid var(--line);
+    background: #fff;
+  }
+  .hero-actions .text-link:hover { border-color: var(--teal); }
+  .oversized-label { font-size: clamp(70px, 25vw, 110px); }
+  .quick-services > a { gap: 14px; }
+  .quick-services > a > div { min-width: 0; }
+  .quick-services .service-arrow { display: inline-flex; flex: 0 0 20px; }
+}
