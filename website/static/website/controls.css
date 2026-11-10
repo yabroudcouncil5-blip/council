@@ -7,6 +7,18 @@
   vertical-align: middle;
 }
 .button .site-icon { width: 22px; height: 22px; flex-basis: 22px; }
+.contact-detail-icon .site-icon { width: 24px; height: 24px; }
+.department-icon .site-icon { width: 32px; height: 32px; }
+.contact-complaint-link,
+.department-link,
+.team-card a,
+.news-read { align-items: center; }
+.contact-way-grid strong {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
 .mobile-menu summary {
   display: flex;
   align-items: center;

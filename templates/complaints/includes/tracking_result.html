@@ -16,7 +16,7 @@
             {% for proof in tracking_result.evidence_items %}<figure>
               {% if proof.image %}<a href="{{ proof.url }}" target="_blank" rel="noopener"><img src="{{ proof.preview_url }}" alt="دليل المعالجة المعتمد" loading="lazy" width="180" height="120"></a>
               {% elif proof.pdf %}<iframe src="{{ proof.url }}" title="دليل المعالجة المعتمد" loading="lazy"></iframe>{% endif %}
-              <figcaption><a href="{{ proof.url }}" target="_blank" rel="noopener">عرض الدليل المعتمد ↗</a></figcaption>
+              <figcaption><a href="{{ proof.url }}" target="_blank" rel="noopener">عرض الدليل المعتمد {% include 'website/includes/icon.html' with icon='arrow-up-right' %}</a></figcaption>
             </figure>{% endfor %}
             </div>
           {% endif %}</td>
