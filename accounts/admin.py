@@ -7,6 +7,7 @@ from unfold.forms import AdminPasswordChangeForm, UserChangeForm, UserCreationFo
 from unfold.widgets import UnfoldAdminSelectWidget
 
 from core.models import Department
+from core.admin_widgets import SuperAdminReferenceDataMixin
 
 admin.site.unregister(User)
 admin.site.unregister(Group)
@@ -69,6 +70,12 @@ class RoleMixin:
         if 'username' in self.fields:
             self.fields['username'].help_text = 'اسم الدخول إلى لوحة الإدارة.'
 
+    def clean(self):
+        data = super().clean()
+        if data.get('role') in {'staff', 'supervisor'} and not data.get('departments'):
+            self.add_error('departments', 'حدد قسم الموظف قبل حفظ الحساب.')
+        return data
+
     def save(self, commit=True):
         user = super().save(commit=False)
         user.is_staff = True
@@ -93,6 +100,9 @@ class RoleMixin:
             group, _ = Group.objects.get_or_create(name=group_names[role])
             groups.append(group)
         self.instance.groups.set(groups)
+        # The selected role replaces previous access, including direct grants
+        # that are not shown in this simplified staff form.
+        self.instance.user_permissions.clear()
         self.instance.council_departments.set(self.cleaned_data.get('departments', []))
 
 
@@ -113,6 +123,8 @@ class SimpleUserChangeForm(RoleMixin, UserChangeForm):
         self.fields['password'].help_text = ''
         if self.instance.is_superuser:
             self.initial['role'] = 'superadmin'
+        elif self.instance.groups.filter(name='Department Officer').exists():
+            self.initial['role'] = 'staff'
         elif self.instance.groups.filter(name='Complaint Reviewer').exists():
             self.initial['role'] = 'reviewer'
         elif self.instance.groups.filter(name='Department Manager').exists():
@@ -123,7 +135,7 @@ class SimpleUserChangeForm(RoleMixin, UserChangeForm):
 
 
 @admin.register(User)
-class UserAdmin(BaseUserAdmin, ModelAdmin):
+class UserAdmin(SuperAdminReferenceDataMixin, BaseUserAdmin, ModelAdmin):
     form = SimpleUserChangeForm
     add_form = SimpleUserCreationForm
     change_password_form = AdminPasswordChangeForm
@@ -150,6 +162,8 @@ class UserAdmin(BaseUserAdmin, ModelAdmin):
         if obj.is_superuser:
             return dict(ROLE_CHOICES)['superadmin']
         names = set(obj.groups.values_list('name', flat=True))
+        if 'Department Officer' in names:
+            return dict(ROLE_CHOICES)['staff']
         if 'Complaint Reviewer' in names:
             return dict(ROLE_CHOICES)['reviewer']
         if 'Department Manager' in names:
@@ -162,5 +176,5 @@ class UserAdmin(BaseUserAdmin, ModelAdmin):
 
 
 @admin.register(Group)
-class GroupAdmin(BaseGroupAdmin, ModelAdmin):
+class GroupAdmin(SuperAdminReferenceDataMixin, BaseGroupAdmin, ModelAdmin):
     pass

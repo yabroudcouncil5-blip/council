@@ -82,15 +82,12 @@ def review_queue(request):
 def staff_dashboard(request):
     if not request.user.is_staff: return JsonResponse({'error':'غير مصرح'}, status=403)
     from django.contrib import admin
-    from django.db.models import Q
-    from .models import ComplaintAssignment, InternalNotification
-    assignments = ComplaintAssignment.objects.filter(
-        Q(officer=request.user) | Q(department__members=request.user)
-    ).select_related('complaint', 'department').distinct().order_by('-assigned_at')
+    from .workflow import assignments_for, notifications_for
+    assignments = assignments_for(request.user).select_related('complaint', 'department').order_by('-assigned_at')
     return render(request, 'staff/dashboard.html', {
         **admin.site.each_context(request), 'title': 'مهام القسم',
         'assignments': assignments,
-        'notifications': InternalNotification.objects.filter(user=request.user, read=False)[:10],
+        'notifications': notifications_for(request.user).filter(read=False)[:10],
     })
 
 @login_required
@@ -108,7 +105,8 @@ def action_submission(request):
     if not assignment_id.isdecimal():
         return JsonResponse({'error': 'اختر إحالة صحيحة'}, status=400)
     assignment = get_object_or_404(ComplaintAssignment, pk=assignment_id)
-    return _workflow_api(request, 'start' if request.POST.get('action') == 'start' else 'submit', complaint_id=assignment.complaint_id)
+    action = request.POST.get('action')
+    return _workflow_api(request, action if action in {'start', 'note'} else 'submit', complaint_id=assignment.complaint_id)
 
 @login_required
 @require_http_methods(['POST'])
@@ -128,7 +126,7 @@ def _workflow_api(request, action, complaint_id=None):
         complaint, assignment = transition(
             complaint_id or request.POST.get('complaint_id'), request.user, action,
             department_id=request.POST.get('department_id'), assignment_id=request.POST.get('assignment_id'),
-            internal_note=request.POST.get('internal_action') or request.POST.get('reason', ''),
+            internal_note=request.POST.get('internal_action') or request.POST.get('internal_note') or request.POST.get('reason', ''),
             public_message=request.POST.get('public_message') or request.POST.get('summary', ''),
             evidence_ids=request.POST.getlist('evidence_ids'), uploads=request.FILES.getlist('evidence'),
             priority=request.POST.get('priority', 'medium'), due_at=request.POST.get('due_at'),
@@ -170,7 +168,8 @@ def complaint_transition(request, complaint_id):
             form.add_error(None, error.message)
             status = error.status
         else:
-            messages.success(request, 'تم حفظ الإجراء وتحديث مرحلة الشكوى وسجل التتبع تلقائياً.')
+            messages.success(request, 'تم حفظ الملاحظة الداخلية دون تغيير مرحلة الشكوى أو التتبع العام.'
+                             if data['action'] == 'note' else 'تم حفظ الإجراء وتحديث مرحلة الشكوى وسجل التتبع تلقائياً.')
             return redirect('admin:complaints_complaint_change', complaint.pk)
     return render(request, 'complaints/admin/workflow_error.html', {
         **admin.site.each_context(request), 'title': 'مراجعة الإجراء',
@@ -257,12 +256,14 @@ def dashboard_report(request):
     from django.db.models import Count, Q
     from django.utils import timezone
     from core.models import Department
-    from .models import ComplaintAssignment, InternalNotification
+    from .workflow import assignments_for, can_review, complaints_for, notifications_for
 
     now = timezone.now()
-    counts = dict(Complaint.objects.values_list('status').annotate(total=Count('id')))
-    assignment_counts = dict(ComplaintAssignment.objects.values_list('status').annotate(total=Count('id')))
-    overdue = ComplaintAssignment.objects.filter(due_at__lt=now).exclude(status__in=['approved', 'cancelled'])
+    visible_complaints = complaints_for(request.user)
+    visible_assignments = assignments_for(request.user)
+    counts = dict(visible_complaints.values_list('status').annotate(total=Count('id')))
+    assignment_counts = dict(visible_assignments.values_list('status').annotate(total=Count('id')))
+    overdue = visible_assignments.filter(due_at__lt=now).exclude(status__in=['approved', 'cancelled'])
     total = sum(counts.values())
     completed = counts.get('completed', 0)
     assignment_labels = [
@@ -270,10 +271,12 @@ def dashboard_report(request):
         ('submitted', 'بانتظار الاعتماد'), ('approved', 'معتمدة'),
         ('returned', 'معادة للاستكمال'), ('cancelled', 'ملغاة'),
     ]
-    department_rows = Department.objects.annotate(
-        total=Count('complaintassignment'),
-        approved=Count('complaintassignment', filter=Q(complaintassignment__status='approved')),
-        overdue=Count('complaintassignment', filter=Q(complaintassignment__due_at__lt=now) & ~Q(complaintassignment__status__in=['approved', 'cancelled'])),
+    departments = Department.objects.all() if can_review(request.user) else Department.objects.filter(active=True, members=request.user)
+    scope = Q(complaintassignment__in=visible_assignments)
+    department_rows = departments.annotate(
+        total=Count('complaintassignment', filter=scope),
+        approved=Count('complaintassignment', filter=scope & Q(complaintassignment__status='approved')),
+        overdue=Count('complaintassignment', filter=scope & Q(complaintassignment__due_at__lt=now) & ~Q(complaintassignment__status__in=['approved', 'cancelled'])),
     ).order_by('-total', 'name')
     context = {
         **admin.site.each_context(request),
@@ -283,7 +286,7 @@ def dashboard_report(request):
         'completion_rate': round(completed * 100 / total) if total else 0,
         'total_assignments': sum(assignment_counts.values()),
         'overdue_count': overdue.count(),
-        'unread_notifications': InternalNotification.objects.filter(user=request.user, read=False).count(),
+        'unread_notifications': notifications_for(request.user).filter(read=False).count(),
         'complaint_rows': [{'label': label, 'status': status, 'count': counts.get(status, 0),
                             'percent': round(counts.get(status, 0) * 100 / total) if total else 0}
                            for status, label in Complaint.STATUS],

@@ -189,7 +189,7 @@ class ComplaintAdmin(CouncilAdmin):
     fieldsets = (
         ('بيانات الشكوى', {'fields': (('reference', 'status'), 'title', 'description', ('category', 'location'))}),
         ('بيانات التواصل مع المواطن', {'fields': (('name', 'phone', 'email'),), 'description': 'بيانات داخلية؛ لا تُنشر على الموقع العام.'}),
-        ('مراجعة إجراءات الفريق والأدلة', {'fields': ('staff_actions_review',), 'description': 'راجع الملاحظات والأدلة قبل اعتماد الشكوى أو إعادتها للقسم.'}),
+        ('سجل عمل الفريق والملاحظات الداخلية', {'fields': ('staff_actions_review',), 'description': 'سجل داخلي للموظفين والمراجع. راجع الإجراءات والأدلة قبل اعتماد الشكوى أو إعادتها للقسم.'}),
         ('التواريخ', {'fields': (('submitted_at', 'updated_at'),), 'classes': ('collapse',)}),
     )
     inlines = (AssignmentRecordInline, ReviewRecordInline, EvidenceRecordInline, HistoryInline)
@@ -205,6 +205,9 @@ class ComplaintAdmin(CouncilAdmin):
 
     def has_change_permission(self, request, obj=None):
         return can_review(request.user)
+
+    def has_delete_permission(self, request, obj=None):
+        return request.user.is_active and request.user.is_superuser
 
     def has_module_permission(self, request):
         return self.has_view_permission(request)
@@ -234,16 +237,16 @@ class ComplaintAdmin(CouncilAdmin):
         # Public submission creates and returns the complaint reference.
         return False
 
-    @admin.display(description='إجراءات الفريق والأدلة')
+    @admin.display(description='الملاحظات والإجراءات والأدلة')
     def staff_actions_review(self, obj):
         if not obj:
-            return 'ستظهر إجراءات الفريق بعد إرسال المعالجة.'
+            return 'ستظهر الملاحظات والإجراءات المسجلة هنا.'
         actions = AssignmentAction.objects.filter(assignment__complaint=obj).select_related('actor', 'assignment__department').prefetch_related('assignment__complaint__attachments').order_by('-created_at')
         if not actions.exists():
-            return 'لم تُسجل إجراءات من الفريق بعد.'
+            return 'لم تُسجل ملاحظات أو إجراءات من الفريق بعد.'
         rows = []
         for action in actions:
-            evidence = obj.attachments.filter(uploaded_by=action.actor, source='staff').order_by('-uploaded_at')
+            evidence = obj.attachments.filter(uploaded_by=action.actor, source='staff').order_by('-uploaded_at') if action.kind == 'submission' else []
             rows.append({
                 'action': action,
                 'evidence': [
@@ -388,13 +391,13 @@ class ReviewAdmin(WorkflowAuditAdmin):
 
 @admin.register(AssignmentAction)
 class ActionAdmin(WorkflowAuditAdmin):
-    list_display = ('assignment', 'actor', 'created_at')
+    list_display = ('assignment', 'kind', 'actor', 'created_at')
     search_fields = ('assignment__complaint__reference', 'internal_action')
     autocomplete_fields = ('assignment', 'actor')
     readonly_fields = ('created_at',)
     fieldsets = (
         ('بيانات التنفيذ', {'fields': ('assignment', 'actor')}),
-        ('تفاصيل الإجراء', {'fields': ('internal_action', 'public_message', 'created_at')}),
+        ('تفاصيل الإجراء', {'fields': ('kind', 'internal_action', 'public_message', 'created_at')}),
     )
 
 
@@ -414,6 +417,21 @@ class RecoveryAdmin(CouncilAdmin):
     search_fields = ('complaint_reference', 'contact', 'explanation')
     readonly_fields = ('created_at',)
     ordering = ('-created_at',)
+
+    def get_queryset(self, request):
+        queryset = super().get_queryset(request)
+        return queryset if can_review(request.user) else queryset.filter(
+            complaint_reference__in=complaints_for(request.user).values('reference'),
+        )
+
+    def has_add_permission(self, request):
+        return can_review(request.user)
+
+    def has_change_permission(self, request, obj=None):
+        return can_review(request.user)
+
+    def has_delete_permission(self, request, obj=None):
+        return request.user.is_active and request.user.is_superuser
 
 
 @admin.register(ComplaintPublication)
@@ -436,3 +454,21 @@ class NotificationAdmin(CouncilAdmin):
     autocomplete_fields = ('user', 'complaint')
     readonly_fields = ('created_at',)
     ordering = ('-created_at',)
+
+    def get_queryset(self, request):
+        from .workflow import notifications_for
+        queryset = super().get_queryset(request)
+        return queryset if request.user.is_superuser else queryset.filter(
+            pk__in=notifications_for(request.user).values('pk'),
+        )
+
+    def get_readonly_fields(self, request, obj=None):
+        if not request.user.is_superuser:
+            return ('message', 'user', 'complaint', 'created_at')
+        return self.readonly_fields
+
+    def has_add_permission(self, request):
+        return request.user.is_active and request.user.is_superuser
+
+    def has_delete_permission(self, request, obj=None):
+        return request.user.is_active and request.user.is_superuser

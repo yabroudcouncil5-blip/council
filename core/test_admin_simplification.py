@@ -1,7 +1,7 @@
 from django import forms
 from django.contrib import admin
 from django.contrib.admin.widgets import RelatedFieldWidgetWrapper
-from django.contrib.auth.models import Permission, User
+from django.contrib.auth.models import Group, Permission, User
 from django.test import RequestFactory, TestCase
 
 from complaints.models import Complaint, ComplaintAssignment, ComplaintReview
@@ -15,6 +15,7 @@ class AdminSelectionSimplificationTests(TestCase):
     def setUpTestData(cls):
         cls.superadmin = User.objects.create_superuser('reference-admin', password='test-password')
         cls.reviewer = User.objects.create_user('reference-reviewer', is_staff=True)
+        cls.reviewer.groups.add(Group.objects.create(name='Complaint Reviewer'))
         cls.reviewer.user_permissions.add(*Permission.objects.filter(
             content_type__app_label__in=['core', 'complaints', 'auth'],
         ))

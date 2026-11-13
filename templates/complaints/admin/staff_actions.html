@@ -1,9 +1,9 @@
 <div class="dashboard-team-actions">
     {% for row in rows %}
         <article class="dashboard-action-review">
-            <header class="dashboard-action-heading"><strong>{{ row.action.assignment.department.name }}</strong><span>{{ row.action.actor.get_full_name|default:row.action.actor.username }} · <time>{{ row.action.created_at|date:"Y/m/d H:i" }}</time></span></header>
+            <header class="dashboard-action-heading"><strong>{{ row.action.assignment.department.name }} · {{ row.action.get_kind_display }}</strong><span>{{ row.action.actor.get_full_name|default:row.action.actor.username }} · <time datetime="{{ row.action.created_at|date:'c' }}">{{ row.action.created_at|date:"Y/m/d H:i" }}</time></span></header>
             <p>{{ row.action.internal_action|linebreaksbr }}</p>
-            {% if row.action.public_message %}<p><span class="dashboard-action-caption">الرسالة للمواطن:</span> {{ row.action.public_message|linebreaksbr }}</p>{% endif %}
+            {% if row.action.public_message %}<p><span class="dashboard-action-caption">ملخص مقترح للمراجع:</span> {{ row.action.public_message|linebreaksbr }}</p>{% endif %}
             {% if row.evidence %}
                 <div class="dashboard-action-evidence" aria-label="أدلة المعالجة">
                     {% for item in row.evidence %}<figure>{{ item.preview }}<figcaption>{{ item.attachment.original_name|default:item.attachment.file.name }}</figcaption></figure>{% endfor %}

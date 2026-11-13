@@ -61,6 +61,10 @@ class AssignmentAction(models.Model):
 
     assignment = models.ForeignKey(ComplaintAssignment, on_delete=models.CASCADE, related_name='actions', verbose_name='الإحالة')
     actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, verbose_name='الموظف')
+    kind = models.CharField(
+        max_length=12, default='submission', verbose_name='نوع السجل',
+        choices=[('submission', 'إجراء مرسل للمراجعة'), ('note', 'ملاحظة داخلية')],
+    )
     internal_action = models.TextField(verbose_name='الإجراء الداخلي')
     public_message = models.TextField(blank=True, verbose_name='الرسالة للمواطن')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='تاريخ الإنشاء')

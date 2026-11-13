@@ -34,6 +34,7 @@ class ComplaintFlowTests(TestCase):
         from .models import ComplaintAssignment, AssignmentAction, ComplaintAttachment
         user = User.objects.create_user('evidence-staff', password='pass', is_staff=True)
         department = Department.objects.create(name='الإنارة')
+        department.members.add(user)
         complaint = Complaint.objects.create(reference='YBC-2026-900002', title='عطل', description='تفاصيل', tracking_hash='unused')
         assignment = ComplaintAssignment.objects.create(complaint=complaint, department=department, officer=user)
         client = Client(); client.force_login(user)
@@ -188,7 +189,9 @@ class ComplaintAdminNavigationTests(TestCase):
 
 class StaffReportTests(TestCase):
     def setUp(self):
+        from django.contrib.auth.models import Group
         self.user = User.objects.create_user('reporter', is_staff=True)
+        self.user.groups.add(Group.objects.create(name='Complaint Reviewer'))
         self.client.force_login(self.user)
 
     def test_empty_report_is_html(self):

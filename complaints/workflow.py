@@ -17,6 +17,7 @@ TERMINAL = {'completed', 'closed'}
 ACTIVE = {'assigned', 'in_progress', 'submitted', 'returned'}
 ACTION_LABELS = {
     'assign': 'إحالة إلى قسم', 'start': 'بدء المعالجة',
+    'note': 'حفظ ملاحظة داخلية فقط',
     'submit': 'إرسال الإجراء والأدلة للمراجعة',
     'approved': 'اعتماد وإغلاق ونشر', 'closed': 'إغلاق دون معالجة ونشر السبب',
     'returned': 'إعادة إلى القسم نفسه', 'additional_assignment': 'تحويل إلى قسم آخر',
@@ -31,18 +32,36 @@ class WorkflowError(Exception):
 
 
 def can_review(user):
-    return bool(user.is_active and user.is_staff and (
-        user.is_superuser
-        or user.groups.filter(name__in=['Complaint Reviewer', 'Department Manager']).exists()
-        or user.has_perm('complaints.add_complaintreview')
-    ))
+    if not user.is_active or not user.is_staff:
+        return False
+    if user.is_superuser:
+        return True
+    roles = set(user.groups.values_list('name', flat=True))
+    # Review authority comes from the selected council role, never a leftover
+    # Django model permission. A department-officer role always stays scoped.
+    return 'Department Officer' not in roles and bool(
+        roles & {'Complaint Reviewer', 'Department Manager'}
+    )
 
 
 def can_work(user, assignment):
     return bool(user.is_active and user.is_staff and assignment and (
-        user.is_superuser or assignment.officer_id == user.pk
-        or assignment.department.members.filter(pk=user.pk).exists()
+        user.is_superuser or (
+            assignment.department.active
+            and assignment.department.members.filter(pk=user.pk).exists()
+        )
     ))
+
+
+def assignments_for(user):
+    """Department membership is the only staff assignment boundary."""
+    if not user.is_active or not user.is_staff:
+        return ComplaintAssignment.objects.none()
+    if can_review(user):
+        return ComplaintAssignment.objects.all()
+    return ComplaintAssignment.objects.filter(
+        department__active=True, department__members=user,
+    ).exclude(status='cancelled')
 
 
 def complaints_for(user):
@@ -50,9 +69,13 @@ def complaints_for(user):
         return Complaint.objects.none()
     if can_review(user):
         return Complaint.objects.all()
-    return Complaint.objects.filter(
-        Q(assignments__department__members=user) | Q(assignments__officer=user)
-    ).distinct()
+    return Complaint.objects.filter(pk__in=assignments_for(user).values('complaint_id'))
+
+
+def notifications_for(user):
+    return InternalNotification.objects.filter(user=user).filter(
+        Q(complaint__isnull=True) | Q(complaint__in=complaints_for(user))
+    )
 
 
 def available_actions(user, complaint):
@@ -64,13 +87,11 @@ def available_actions(user, complaint):
         if complaint.status == 'final_review':
             return ['approved', 'returned', 'additional_assignment', 'closed']
         work = [item for item in complaint.assignments.filter(status__in=['assigned', 'returned', 'in_progress']) if can_work(user, item)]
-        choices = (['start'] if any(item.status != 'in_progress' for item in work) else []) + (['submit'] if work else [])
+        choices = (['start'] if any(item.status != 'in_progress' for item in work) else []) + (['note', 'submit'] if work else [])
         return choices + ['additional_assignment', 'closed']
-    assignments = complaint.assignments.filter(status__in=ACTIVE).select_related('department')
+    assignments = complaint.assignments.filter(status__in=['assigned', 'returned', 'in_progress']).select_related('department')
     if complaint.status not in TERMINAL and any(can_work(user, item) for item in assignments):
-        if assignments.filter(status='submitted').count() == assignments.count():
-            return []
-        return (['start'] if any(item.status in {'assigned', 'returned'} and can_work(user, item) for item in assignments) else []) + ['submit']
+        return (['start'] if any(item.status in {'assigned', 'returned'} and can_work(user, item) for item in assignments) else []) + ['note', 'submit']
     return []
 
 
@@ -126,7 +147,7 @@ def transition(complaint_id, user, action, *, department_id=None, assignment_id=
                internal_note='', public_message='', evidence_ids=(), uploads=(),
                priority='medium', due_at=None, version=None, confirm=False):
     complaint = Complaint.objects.select_for_update().get(pk=complaint_id)
-    if not user.is_active or not user.is_staff:
+    if not complaints_for(user).filter(pk=complaint.pk).exists():
         raise PermissionDenied
     if version and version != complaint.updated_at.isoformat():
         raise WorkflowError('تغيرت الشكوى منذ فتحها. حدّث الصفحة وراجع آخر إجراء.', 409)
@@ -136,7 +157,7 @@ def transition(complaint_id, user, action, *, department_id=None, assignment_id=
     if any(not pk.isdecimal() for pk in evidence_ids):
         raise WorkflowError('اختيار الأدلة غير صحيح.')
     reviewer = can_review(user)
-    if action not in {'start', 'submit'} and not reviewer:
+    if action not in {'start', 'note', 'submit'} and not reviewer:
         raise PermissionDenied
     assignments = complaint.assignments.select_related('department').order_by('-assigned_at', '-pk')
     assignment = None
@@ -144,7 +165,7 @@ def transition(complaint_id, user, action, *, department_id=None, assignment_id=
         assignment = assignments.filter(pk=assignment_id).first()
         if not assignment:
             raise WorkflowError('الإحالة لا تتبع هذه الشكوى.')
-    elif action in {'start', 'submit'}:
+    elif action in {'start', 'note', 'submit'}:
         assignment = next((item for item in assignments.filter(status__in=['assigned', 'returned', 'in_progress'])
                            if can_work(user, item)), None)
     else:
@@ -183,11 +204,24 @@ def transition(complaint_id, user, action, *, department_id=None, assignment_id=
         for member in department.members.filter(is_active=True, is_staff=True):
             InternalNotification.objects.create(user=member, complaint=complaint,
                                                 message=f'إحالة جديدة للقسم: {complaint.reference}')
-    elif action in {'start', 'submit'}:
+    elif action in {'start', 'note', 'submit'}:
         if complaint.status in TERMINAL or not assignment or assignment.status not in {'assigned', 'returned', 'in_progress'}:
             raise WorkflowError('لا توجد إحالة مفتوحة يمكن اتخاذ إجراء عليها.', 409)
         if not can_work(user, assignment):
             raise PermissionDenied
+        if action == 'note':
+            if not internal_note.strip():
+                raise WorkflowError('اكتب الملاحظة الداخلية قبل حفظها.')
+            if uploads:
+                raise WorkflowError('أرفق أدلة المعالجة عند اختيار إرسال الإجراء للمراجعة.')
+            AssignmentAction.objects.create(
+                assignment=assignment, actor=user, kind='note',
+                internal_action=internal_note.strip(),
+            )
+            # Invalidate stale internal forms without creating a public stage
+            # or sending the unfinished department work for approval.
+            complaint.save(update_fields=('updated_at',))
+            return complaint, assignment
         _unpublish(complaint)
         if action == 'start':
             if assignment.status == 'in_progress':
@@ -231,7 +265,7 @@ def transition(complaint_id, user, action, *, department_id=None, assignment_id=
         if not public_message.strip():
             raise WorkflowError('اكتب النتيجة التي ستظهر للمواطن.')
         if action == 'approved':
-            if not assignment or assignment.status != 'submitted' or not assignment.actions.exists():
+            if not assignment or assignment.status != 'submitted' or not assignment.actions.filter(kind='submission').exists():
                 raise WorkflowError('يجب أن يرسل القسم الإجراء للمراجعة قبل اعتماده.', 409)
             assignment.status = 'approved'
             assignment.save(update_fields=('status',))

@@ -45,7 +45,7 @@ def tracking_result(data):
     for assignment in complaint.assignments.select_related('department').order_by('assigned_at', 'pk'):
         add_missing('assigned', assignment.assigned_at,
                     f'تمت إحالة الشكوى إلى قسم {assignment.department.name}', equivalent=('transferred',))
-        for action in assignment.actions.order_by('created_at', 'pk'):
+        for action in assignment.actions.filter(kind='submission').order_by('created_at', 'pk'):
             add_missing('final_review', action.created_at, PUBLIC_MESSAGES['final_review'], equivalent=('in_progress',))
     for review in complaint.reviews.order_by('created_at', 'pk'):
         code = {'returned': 'assigned', 'additional_assignment': 'transferred', 'closed': 'closed'}.get(review.decision)

@@ -1,4 +1,4 @@
-# Complaint workflow audit — 6 November 2026
+# Complaint workflow audit — 13 November 2026
 
 ## Corrected causes
 
@@ -27,6 +27,7 @@ second status field or use another workflow page.
 | Resident submits | تم الاستلام | Reference and generic event are public. |
 | Reviewer assigns a department | تمت الإحالة | Department staff see the case without choosing an officer. |
 | Department starts work | قيد المعالجة | Internal notes are private. |
+| Department saves an internal progress note | Unchanged | Append-only note with author and timestamp; no public event or review submission. |
 | Department sends its action and evidence | تم اتخاذ الإجراء، بانتظار الاعتماد | Proposed text and proof remain internal for review. |
 | Reviewer approves and publishes | أغلقت بعد الاعتماد | Approved public summary and selected council proof are released together. |
 | Reviewer returns to the same department | تمت الإحالة | Staff see the internal completion instructions. |
@@ -34,11 +35,25 @@ second status field or use another workflow page.
 | Reviewer closes without action | أغلقت دون معالجة | An explicit public reason is required. |
 
 `complaints/workflow.py` is the single write path for the action panel and legacy
-API endpoints. Each valid action updates the complaint, assignment/review rows
+API endpoints. Stage-changing actions update the complaint, assignment/review rows
 and event history in one transaction. A stale form cannot overwrite a newer
 action. A department officer cannot assign or approve cases, or act on a case
 outside their department. Reviewers and supervisors can review the department's
 notes and proof before confirming a final decision.
+
+Department staff see only cases with a non-cancelled assignment to one of their
+active departments. The same scope applies to lists, direct links, reports,
+autocomplete, notifications, private evidence and write endpoints. Named-officer
+fields and old Django permissions do not override department membership or grant
+review authority. Only the super admin manages staff roles and role definitions.
+
+For staff, the action panel opens on **حفظ ملاحظة داخلية فقط** with the private
+notes field visible. This saves a separate record in **سجل عمل الفريق والملاحظات
+الداخلية**, without changing the assignment or public tracker. On completion,
+staff select **إرسال الإجراء والأدلة للمراجعة** and record the completed work and
+evidence. Notes cannot count as a completed submission for approval, and are
+never used to prefill a public result. After submission, staff wait for review or
+a request for further work.
 
 The public tracker uses the complaint's actual current stage and a chronological
 event table. The last row contains the final public decision and inline proof.
@@ -74,13 +89,16 @@ evidence. A legacy closed case can publish its final summary/proof from the same
 action panel. The website page-title migration records an existing Arabic label
 so migration state matches the model.
 
+Migration `complaints.0009_assignmentaction_kind` distinguishes private progress
+notes from review submissions. Existing action records remain submissions.
+
 Deploy code, run `python manage.py migrate --noinput`, then run
 `python manage.py collectstatic --noinput`. Keep complaint media on persistent
 storage and use the evidence endpoint for complaint-file previews.
 
 ## Verification
 
-- 76 accounts/core/complaints/website tests pass, including 22 workflow cases.
+- All 105 project tests pass, including department-access and internal-note cases.
 - Tests cover every stage, public/dashboard agreement, reviewer attribution,
   department access, multiple departments, return/transfer/reopen, invalid file
   rollback, stale actions, readonly audit records, production file serving,

@@ -8,7 +8,10 @@ def can_view_dashboard(request):
 
 def can_view_reports(request):
     from complaints.workflow import can_review
-    return can_review(request.user) or _has_any(request.user, 'complaints.view_complaintassignment', 'complaints.view_complaint')
+    return can_review(request.user) or bool(
+        request.user.is_active and request.user.is_staff
+        and request.user.council_departments.filter(active=True).exists()
+    )
 
 
 def can_view_complaints(request):
