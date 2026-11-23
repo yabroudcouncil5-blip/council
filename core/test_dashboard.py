@@ -70,6 +70,25 @@ class CouncilDashboardTests(TestCase):
         self.assertEqual(sum(row['count'] for row in weeks), 1)
         self.assertEqual([(row['label'], row['count']) for row in overdue], [(visible_department.name, 1)])
 
+    def test_deadline_badges_show_remaining_and_overdue_days(self):
+        department = Department.objects.create(name='الصيانة')
+        self.client.force_login(self.admin)
+        assignment = ComplaintAssignment.objects.create(
+            complaint=self.complaint, department=department, due_at=timezone.now() + timedelta(hours=30),
+        )
+        pages = ('/admin/complaints/complaint/', '/staff/dashboard/')
+        for page in pages:
+            response = self.client.get(page)
+            self.assertContains(response, 'followup-badge--on-time')
+            self.assertContains(response, '<bdi>2</bdi> متبقٍ')
+
+        assignment.due_at = timezone.now() - timedelta(minutes=30)
+        assignment.save(update_fields=['due_at'])
+        for page in pages:
+            response = self.client.get(page)
+            self.assertContains(response, 'followup-badge--late')
+            self.assertContains(response, '<bdi>1</bdi> متأخرة')
+
     def test_department_manager_can_change_priority_for_own_open_assignment(self):
         from django.contrib.auth.models import Group
         from django.core.exceptions import PermissionDenied

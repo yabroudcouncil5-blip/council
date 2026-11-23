@@ -10,6 +10,7 @@ from django.utils.html import format_html
 from unfold.admin import ModelAdmin, StackedInline, TabularInline
 from unfold.widgets import UnfoldAdminSelectWidget, UnfoldAdminTextareaWidget
 from core.admin_widgets import SelectionOnlyRelatedFieldsMixin
+from .deadlines import deadline_badge
 from .workflow import assignments_for, can_review, complaints_for
 
 from .models import (
@@ -242,17 +243,10 @@ class ComplaintAdmin(CouncilAdmin):
             key, label = ASSIGNMENT_PRIORITIES[obj.visible_priority_rank - 1]
             return format_html('<span class="followup-badge followup-badge--{}">{}</span>', key, label)
 
-    @admin.display(description='المهلة', ordering='visible_deadline', empty_value='غير محددة')
+    @admin.display(description='المهلة بالأيام', ordering='visible_deadline', empty_value='غير محددة')
     def open_deadline(self, obj):
         if obj.visible_deadline:
-            local_deadline = timezone.localtime(obj.visible_deadline)
-            label = local_deadline.strftime('%Y/%m/%d %H:%M')
-            if obj.visible_deadline < timezone.now():
-                return format_html(
-                    '<span class="followup-deadline"><strong class="followup-badge followup-badge--overdue">متأخرة</strong>'
-                    '<time datetime="{}"><bdi>{}</bdi></time></span>', local_deadline.isoformat(), label,
-                )
-            return format_html('<time datetime="{}"><bdi>{}</bdi></time>', local_deadline.isoformat(), label)
+            return deadline_badge(obj.visible_deadline, timezone.now())
 
     def has_view_permission(self, request, obj=None):
         return bool(request.user.is_staff and (can_review(request.user) or

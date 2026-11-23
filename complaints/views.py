@@ -147,15 +147,19 @@ def review_queue(request):
 def staff_dashboard(request):
     if not request.user.is_staff: return JsonResponse({'error':'غير مصرح'}, status=403)
     from django.contrib import admin
-    from .workflow import assignments_for, notifications_for
+    from .deadlines import deadline_badge
+    from .workflow import ACTIVE, assignments_for, notifications_for
     from django.db.models import Case, Q, Value, When
     now = timezone.now()
-    open_work = ~Q(status__in=['approved', 'cancelled'])
+    open_work = Q(status__in=ACTIVE)
     assignments = assignments_for(request.user).select_related('complaint', 'department').annotate(
         is_overdue=Case(When(open_work & Q(due_at__lt=now), then=Value(True)), default=Value(False)),
     ).alias(
         urgent_first=Case(When(open_work & Q(priority='urgent'), then=Value(True)), default=Value(False)),
     ).order_by('-urgent_first', '-is_overdue', '-assigned_at', '-pk')
+    for assignment in assignments:
+        if assignment.due_at and assignment.status in ACTIVE:
+            assignment.deadline_display = deadline_badge(assignment.due_at, now)
     return render(request, 'staff/dashboard.html', {
         **admin.site.each_context(request), 'title': 'مهام القسم',
         'assignments': assignments,

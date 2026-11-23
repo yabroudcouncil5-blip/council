@@ -9,7 +9,7 @@
     </div>
     <dl class="complaint-summary-facts">
         <div><dt>الأولوية</dt><dd>{{ workflow_priority|default:"غير محددة" }}</dd></div>
-        <div><dt>المهلة</dt><dd>{{ workflow_deadline|default:"غير محددة" }}</dd></div>
+        <div><dt>المهلة بالأيام</dt><dd>{{ workflow_deadline|default:"غير محددة" }}</dd></div>
         <div><dt>تاريخ الاستلام</dt><dd><time datetime="{{ workflow_complaint.submitted_at|date:'c' }}"><bdi>{{ workflow_complaint.submitted_at|date:"Y/m/d H:i" }}</bdi></time></dd></div>
     </dl>
     <nav class="complaint-section-links" aria-label="أقسام صفحة الشكوى">

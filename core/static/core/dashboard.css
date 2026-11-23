@@ -323,8 +323,11 @@ html[dir="rtl"] #content table th, html[dir="rtl"] #content table td { text-alig
 .dark .followup-badge--high { background: #342744; color: #ded0fc; border-color: #5a4773; }
 .dark .followup-badge--medium { background: #183a32; color: #bce8d8; border-color: #315b4f; }
 
-.followup-deadline { display: inline-flex; align-items: center; flex-wrap: wrap; gap: .35rem; }
-.followup-deadline time { font-variant-numeric: tabular-nums; }
+.followup-badge--on-time { background: #e1f6e8; color: #145a32; border-color: #b9e7c9; }
+.followup-badge--late { background: #ffedef; color: #921f36; border-color: #f7c2ca; }
+.dark .followup-badge--on-time { background: #18382a; color: #b6ebcb; border-color: #36634c; }
+.dark .followup-badge--late { background: #4c202d; color: #ffc1cb; border-color: #784054; }
+.followup-deadline { gap: .3rem; font-variant-numeric: tabular-nums; }
 .followup-filters { display: flex; flex-wrap: wrap; gap: .55rem; margin: .4rem 0 1rem; }
 .followup-filters a { min-height: 2.5rem; padding-inline: .85rem; }
 .followup-filters a:hover,
