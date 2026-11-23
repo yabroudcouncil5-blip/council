@@ -9,9 +9,12 @@
 {% block content %}
 <div class="dashboard-reports" dir="rtl" lang="ar">
 <div class="report-head">
-    <div><h2>ملخص الأداء</h2><p>الشكاوى والإحالات ومواعيد العمل في الأقسام.</p></div>
-    <a class="report-link report-download" href="{% url 'staff_reports_pdf' %}">تنزيل PDF</a>
-    <time datetime="{{ generated_at|date:'c' }}">آخر تحديث: <bdi>{{ generated_at|date:"Y/m/d H:i" }}</bdi></time>
+    <div>
+        <h2>ملخص الأداء</h2>
+        <p>الشكاوى والإحالات ومواعيد العمل في الأقسام.</p>
+        <time datetime="{{ generated_at|date:'c' }}">آخر تحديث: <bdi>{{ generated_at|date:"Y/m/d H:i" }}</bdi></time>
+    </div>
+    <a class="report-download" href="{% url 'staff_reports_pdf' %}">تنزيل PDF</a>
 </div>
 <section class="metrics" aria-label="المؤشرات العامة">
  <a class="metric" href="{% url 'admin:complaints_complaint_changelist' %}"><span>إجمالي الشكاوى</span><strong>{{ total_complaints }}</strong></a>

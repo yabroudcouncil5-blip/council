@@ -1,0 +1,61 @@
+{% extends "admin/change_form.html" %}
+
+{% block bodyclass %}{{ block.super }} complaint-detail{% endblock %}
+
+{% block form_before %}
+    {% include "complaints/admin/workflow_status.html" %}
+    {% include "complaints/admin/workflow_actions.html" %}
+{% endblock %}
+
+{% block field_sets %}
+    {% for fieldset in adminform %}
+        {% if "case-main-fields" in fieldset.classes %}
+            <section id="complaint-information" class="complaint-card-anchor" aria-label="بيانات الشكوى">
+                {% include "admin/includes/fieldset.html" %}
+            </section>
+        {% endif %}
+    {% endfor %}
+{% endblock %}
+
+{% block inline_field_sets %}
+    {% if request.headers.hx_request %}
+        {{ block.super }}
+    {% else %}
+        {% for inline_admin_formset in inline_admin_formsets %}
+            {% if inline_admin_formset.opts.opts.model_name == 'complaintassignment' %}
+                <section id="complaint-assignments" class="complaint-card-anchor" aria-label="إحالات الأقسام">
+                    {% include inline_admin_formset.opts.template %}
+                </section>
+            {% endif %}
+        {% endfor %}
+
+        <details class="complaint-record-card"{% if workflow_complaint.status == 'final_review' %} open{% endif %}>
+            <summary>عمل الفريق والأدلة</summary>
+            <div id="complaint-team-work" class="complaint-record-body complaint-card-anchor">
+                {% for fieldset in adminform %}
+                    {% if "case-team-fields" in fieldset.classes %}{% include "admin/includes/fieldset.html" %}{% endif %}
+                {% endfor %}
+                {% for inline_admin_formset in inline_admin_formsets %}
+                    {% if inline_admin_formset.opts.opts.model_name == 'complaintattachment' %}{% include inline_admin_formset.opts.template %}{% endif %}
+                {% endfor %}
+            </div>
+        </details>
+
+        <details class="complaint-record-card">
+            <summary>المراجعات وسجل التتبع</summary>
+            <div id="complaint-history" class="complaint-record-body complaint-card-anchor">
+                {% for inline_admin_formset in inline_admin_formsets %}
+                    {% if inline_admin_formset.opts.opts.model_name == 'complaintreview' or inline_admin_formset.opts.opts.model_name == 'complaintstatushistory' %}
+                        {% include inline_admin_formset.opts.template %}
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </details>
+
+        <section id="complaint-private-details" class="complaint-card-anchor complaint-private-details" aria-label="التواصل وبيانات التسجيل">
+            {% for fieldset in adminform %}
+                {% if "case-private-fields" in fieldset.classes %}{% include "admin/includes/fieldset.html" with collapse_card=True expand_collapsed=errors %}{% endif %}
+            {% endfor %}
+        </section>
+    {% endif %}
+{% endblock %}

@@ -1,7 +1,24 @@
 {% if workflow_complaint %}
-<section class="dashboard-workflow-status" aria-label="مرحلة الشكوى">
-  <div><small>المرحلة الحالية — نفس المرحلة في تتبع المواطن</small><strong>{{ workflow_complaint.get_status_display }}</strong></div>
-  <div><small>الرقم المرجعي</small><bdi>{{ workflow_complaint.reference }}</bdi></div>
-  {% if workflow_actions %}<a class="dashboard-action" href="#complaint-next-action">اتخاذ الإجراء التالي ↓</a>{% endif %}
+<section class="complaint-summary" aria-labelledby="complaint-summary-title">
+    <div class="complaint-summary-heading">
+        <div>
+            <p class="complaint-reference"><bdi>{{ workflow_complaint.reference }}</bdi></p>
+            <h2 id="complaint-summary-title">{{ workflow_complaint.title }}</h2>
+        </div>
+        <span class="complaint-stage">{{ workflow_complaint.get_status_display }}</span>
+    </div>
+    <dl class="complaint-summary-facts">
+        <div><dt>الأولوية</dt><dd>{{ workflow_priority|default:"غير محددة" }}</dd></div>
+        <div><dt>المهلة</dt><dd>{{ workflow_deadline|default:"غير محددة" }}</dd></div>
+        <div><dt>تاريخ الاستلام</dt><dd><time datetime="{{ workflow_complaint.submitted_at|date:'c' }}"><bdi>{{ workflow_complaint.submitted_at|date:"Y/m/d H:i" }}</bdi></time></dd></div>
+    </dl>
+    <nav class="complaint-section-links" aria-label="أقسام صفحة الشكوى">
+        {% if workflow_actions %}<a href="#complaint-next-action">الإجراء التالي</a>{% endif %}
+        <a href="#complaint-information">بيانات الشكوى</a>
+        <a href="#complaint-assignments">الإحالات</a>
+        <a href="#complaint-team-work">عمل الفريق والأدلة</a>
+        <a href="#complaint-history">المراجعات والتتبع</a>
+        <a href="#complaint-private-details">بيانات التواصل</a>
+    </nav>
 </section>
 {% endif %}

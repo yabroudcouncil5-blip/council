@@ -111,6 +111,23 @@ class CouncilDashboardTests(TestCase):
         with self.assertRaises(PermissionDenied):
             transition(self.complaint.pk, manager, 'update_priority', assignment_id=other.pk, priority='urgent')
 
+    def test_complaint_detail_groups_actions_and_records_in_order(self):
+        self.client.force_login(self.admin)
+        response = self.client.get(f'/admin/complaints/complaint/{self.complaint.pk}/change/')
+        self.assertContains(response, 'complaint-summary')
+        html = response.content.decode()
+        positions = [
+            html.index(f'id="{section}"')
+            for section in (
+                'complaint-summary-title', 'complaint-next-action', 'complaint-information',
+                'complaint-assignments', 'complaint-team-work', 'complaint-history',
+                'complaint-private-details',
+            )
+        ]
+        self.assertEqual(positions, sorted(positions))
+        for management_field in ('assignments', 'attachments', 'reviews', 'status_history'):
+            self.assertContains(response, f'name="{management_field}-TOTAL_FORMS"')
+
     def test_assignment_rejects_officer_outside_department(self):
         department = Department.objects.create(name='الطرق')
         officer = User.objects.create_user('officer', is_staff=True)

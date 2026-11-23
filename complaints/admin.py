@@ -198,14 +198,20 @@ class ComplaintAdmin(CouncilAdmin):
     list_select_related = ('category',)
     readonly_fields = ('reference', 'status', 'submitted_at', 'updated_at', 'staff_actions_review')
     fieldsets = (
-        ('بيانات الشكوى', {'fields': (('reference', 'status'), 'title', 'description', ('category', 'location'))}),
-        ('بيانات التواصل مع المواطن', {'fields': (('name', 'phone', 'email'),), 'description': 'بيانات داخلية؛ لا تُنشر على الموقع العام.'}),
-        ('سجل عمل الفريق والملاحظات الداخلية', {'fields': ('staff_actions_review',), 'description': 'سجل داخلي للموظفين والمراجع. راجع الإجراءات والأدلة قبل اعتماد الشكوى أو إعادتها للقسم.'}),
-        ('التواريخ', {'fields': (('submitted_at', 'updated_at'),), 'classes': ('collapse',)}),
+        ('بيانات الشكوى', {'fields': ('title', 'description', ('category', 'location')), 'classes': ('case-main-fields',)}),
+        ('عمل الفريق والملاحظات الداخلية', {'fields': ('staff_actions_review',), 'classes': ('case-team-fields',)}),
+        ('بيانات التواصل مع المواطن', {
+            'fields': (('name', 'phone', 'email'),),
+            'description': 'بيانات داخلية.',
+            'classes': ('case-private-fields',),
+        }),
+        ('بيانات التسجيل', {
+            'fields': (('reference', 'status'), ('submitted_at', 'updated_at')),
+            'classes': ('case-private-fields',),
+        }),
     )
-    inlines = (AssignmentRecordInline, ReviewRecordInline, EvidenceRecordInline, HistoryInline)
-    change_form_outer_before_template = 'complaints/admin/workflow_status.html'
-    change_form_outer_after_template = 'complaints/admin/workflow_actions.html'
+    inlines = (AssignmentRecordInline, EvidenceRecordInline, ReviewRecordInline, HistoryInline)
+    change_form_template = 'complaints/admin/complaint_detail.html'
 
     def get_queryset(self, request):
         open_assignments = assignments_for(request.user).filter(
@@ -274,6 +280,8 @@ class ComplaintAdmin(CouncilAdmin):
         if obj and self.has_view_permission(request, obj):
             extra_context.update({
                 'workflow_complaint': obj,
+                'workflow_priority': self.open_priority(obj),
+                'workflow_deadline': self.open_deadline(obj),
                 'workflow_form': ComplaintWorkflowForm(complaint=obj, user=request.user),
                 'workflow_actions': available_actions(request.user, obj),
                 'workflow_reviewer': can_review(request.user),
