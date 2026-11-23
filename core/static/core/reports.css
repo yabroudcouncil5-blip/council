@@ -41,3 +41,12 @@
     .dashboard-reports .metric { display: block; }
     .dashboard-reports .metric strong { display: block; margin-top: 3px; }
 }
+
+.report-download {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding-inline: .9rem;
+    border: 1px solid currentColor;
+    border-radius: .5rem;
+}

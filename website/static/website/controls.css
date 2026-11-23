@@ -80,3 +80,30 @@
   .quick-services > a > div { min-width: 0; }
   .quick-services .service-arrow { display: inline-flex; flex: 0 0 20px; }
 }
+
+.whatsapp-contact {
+    position: fixed;
+    inset-inline-end: max(1rem, env(safe-area-inset-left));
+    bottom: max(1rem, env(safe-area-inset-bottom));
+    z-index: 10;
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding-inline: 1rem;
+    border-radius: 999px;
+    background: #086348;
+    color: #fff;
+    box-shadow: 0 4px 14px #102c2840;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.whatsapp-contact:hover,
+.whatsapp-contact:focus-visible {
+    background: #064e39;
+    color: #fff;
+}
+
+.site-footer {
+    padding-bottom: 5rem;
+}

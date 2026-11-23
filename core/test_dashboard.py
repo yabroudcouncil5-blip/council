@@ -1,3 +1,6 @@
+from datetime import timedelta
+
+from django.utils import timezone
 from django.contrib.auth.models import User
 from django.test import TestCase
 
@@ -27,6 +30,42 @@ class CouncilDashboardTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, 'YBC-TEST-1')
         self.assertEqual(response.context['metrics'], [])
+
+    def test_staff_followup_columns_and_charts_use_only_visible_assignments(self):
+        officer = User.objects.create_user('scoped-officer', is_staff=True)
+        visible_department = Department.objects.create(name='الإنارة')
+        hidden_department = Department.objects.create(name='قسم خارج النطاق')
+        visible_department.members.add(officer)
+        now = timezone.now()
+        ComplaintAssignment.objects.create(
+            complaint=self.complaint, department=visible_department,
+            priority='high', due_at=now - timedelta(hours=1),
+        )
+        ComplaintAssignment.objects.create(
+            complaint=self.complaint, department=hidden_department,
+            priority='urgent', due_at=now - timedelta(days=2),
+        )
+        ComplaintAssignment.objects.create(
+            complaint=self.complaint, department=visible_department,
+            priority='urgent', status='approved', due_at=now - timedelta(days=3),
+        )
+        self.client.force_login(officer)
+        response = self.client.get('/admin/complaints/complaint/')
+        self.assertContains(response, 'مرتفعة')
+        self.assertContains(response, 'متأخرة')
+        self.assertNotContains(response, 'عاجلة')
+        response = self.client.get('/staff/dashboard/')
+        self.assertContains(response, 'الأولوية')
+        self.assertContains(response, 'متأخرة')
+        self.assertNotContains(response, hidden_department.name)
+
+        response = self.client.get('/admin/')
+        charts = {chart['variant']: chart['rows'] for chart in response.context['dashboard_charts']}
+        status, weeks, overdue = (charts[key] for key in ('status', 'weekly', 'overdue'))
+        self.assertContains(response, 'complaint-chart--weekly')
+        self.assertEqual(sum(row['count'] for row in status), 1)
+        self.assertEqual(sum(row['count'] for row in weeks), 1)
+        self.assertEqual([(row['label'], row['count']) for row in overdue], [(visible_department.name, 1)])
 
     def test_assignment_rejects_officer_outside_department(self):
         department = Department.objects.create(name='الطرق')

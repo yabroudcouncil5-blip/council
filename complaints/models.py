@@ -38,10 +38,19 @@ class ComplaintStatusHistory(models.Model):
     def __str__(self):
         return f'{self.complaint.reference} · {self.status}'
 
+ASSIGNMENT_PRIORITIES = [
+    ('low', 'منخفضة'), ('medium', 'متوسطة'), ('high', 'مرتفعة'), ('urgent', 'عاجلة'),
+]
+
+
 class ComplaintAssignment(models.Model):
     class Meta:
         verbose_name = 'إحالة'
         verbose_name_plural = 'الإحالات'
+
+    @property
+    def priority_label(self):
+        return dict(ASSIGNMENT_PRIORITIES).get(self.priority, self.priority)
 
     def __str__(self):
         return f"{self.complaint.reference} · {self.department.name}"

@@ -37,4 +37,7 @@
     <div class="shell footer-main"><div class="footer-brand"><span class="footer-kicker">مدينة تجمعنا. خدمة تقرّبنا.</span><h2>{{ council.name|default:'بلدية يبرود' }}</h2><p>نعمل مع أهل المدينة من أجل خدمات أفضل،<br>ومدينة نعتزّ بها كل يوم.</p></div><div><h3>روابط تهمّك</h3><a href="/services/">الخدمات البلدية</a><a href="/departments/">أقسام البلدية</a><a href="/#tracking">تتبع شكوى</a><a href="/news/">الأخبار والإعلانات</a></div><div><h3>نحن هنا لمساعدتك</h3><p>{{ council.address|default:'يبرود · ريف دمشق · سوريا' }}</p>{% if council.phone %}<a href="tel:{{ council.phone }}"><bdi>{{ council.phone }}</bdi></a>{% endif %}{% if council.email %}<a href="mailto:{{ council.email }}"><bdi>{{ council.email }}</bdi></a>{% endif %}<a href="/contact/">جميع وسائل التواصل {% include 'website/includes/icon.html' with icon='arrow-left' %}</a></div></div>
     <div class="shell footer-bottom"><span>مجلس مدينة يبرود · في خدمة المدينة وأهلها</span><a href="/staff/login/">مساحة عمل الموظفين</a></div>
   </footer>
+  <a class="whatsapp-contact" href="https://wa.me/963936100228?text={{ 'مرحباً، لدي استفسار لمجلس مدينة يبرود.'|urlencode }}" target="_blank" rel="noopener noreferrer">
+    تواصل عبر واتساب
+  </a>
 </body></html>

@@ -1,0 +1,28 @@
+{% load l10n %}
+{% if charts %}
+<div class="complaint-charts" dir="rtl">
+    {% for chart in charts %}
+    <section class="complaint-chart complaint-chart--{{ chart.variant }}" aria-labelledby="complaint-chart-{{ chart.variant }}">
+        <header>
+            <h2 id="complaint-chart-{{ chart.variant }}">{{ chart.title }}</h2>
+            <p>{{ chart.caption }}</p>
+        </header>
+        {% if chart.rows %}
+        <ol class="complaint-chart-plot" role="list">
+            {% for row in chart.rows %}
+            <li>
+                <bdi class="complaint-chart-label">{{ row.label }}</bdi>
+                <span class="complaint-chart-track" aria-hidden="true">
+                    <span class="complaint-chart-bar" style="--bar-size: {{ row.percent|unlocalize }}%"></span>
+                </span>
+                <strong class="complaint-chart-count">{{ row.count }}</strong>
+            </li>
+            {% endfor %}
+        </ol>
+        {% else %}
+        <p class="complaint-chart-empty">لا توجد بيانات لعرضها.</p>
+        {% endif %}
+    </section>
+    {% endfor %}
+</div>
+{% endif %}

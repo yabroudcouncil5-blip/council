@@ -1,0 +1,77 @@
+.complaint-charts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 26rem), 1fr));
+    gap: 1rem;
+    margin-block: 1rem;
+}
+
+.complaint-chart {
+    --chart-accent: #08785b;
+    --chart-track: var(--dashboard-subtle, #eef3f3);
+    min-width: 0;
+    border: 1px solid var(--dashboard-border);
+    border-radius: 12px;
+    background: var(--dashboard-surface);
+    color: var(--dashboard-ink);
+}
+
+.complaint-chart--overdue { --chart-accent: #b35b19; }
+.complaint-chart--weekly { --chart-accent: #22619a; grid-column: 1 / -1; }
+.dark .complaint-chart--status { --chart-accent: #48bd9a; }
+.dark .complaint-chart--overdue { --chart-accent: #e9a262; }
+.dark .complaint-chart--weekly { --chart-accent: #78afe1; }
+
+.complaint-chart header { padding: 1rem 1.2rem .65rem; }
+.complaint-chart h2 { margin: 0; font-size: 1rem; font-weight: 700; }
+.complaint-chart p { margin-block: .25rem 0; color: var(--dashboard-muted); font-size: .8rem; }
+.complaint-chart .complaint-chart-empty { padding: .65rem 1.2rem 1.25rem; }
+
+.complaint-chart-plot {
+    display: grid;
+    gap: .7rem;
+    list-style: none;
+    margin: 0;
+    padding: .6rem 1.2rem 1.2rem;
+}
+
+.complaint-chart-plot li {
+    display: grid;
+    grid-template-columns: minmax(5rem, 1fr) minmax(2rem, 1fr) 5ch;
+    align-items: center;
+    gap: .65rem;
+    font-size: .85rem;
+}
+
+.complaint-chart-label { overflow-wrap: anywhere; }
+.complaint-chart-count { font-variant-numeric: tabular-nums; text-align: end; }
+.complaint-chart-track { display: block; background: var(--chart-track); border-radius: 4px; }
+.complaint-chart-bar { display: block; background: var(--chart-accent); border-radius: inherit; }
+.complaint-chart:not(.complaint-chart--weekly) .complaint-chart-bar { width: var(--bar-size); height: .55rem; }
+
+.complaint-chart--weekly .complaint-chart-plot {
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+    gap: .35rem;
+}
+
+.complaint-chart--weekly li {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 7rem auto;
+    justify-items: center;
+    gap: .35rem;
+}
+
+.complaint-chart--weekly .complaint-chart-count { grid-row: 1; }
+.complaint-chart--weekly .complaint-chart-label { grid-row: 3; white-space: nowrap; font-size: .73rem; }
+.complaint-chart--weekly .complaint-chart-track {
+    grid-row: 2;
+    display: flex;
+    align-items: flex-end;
+    align-self: stretch;
+    width: min(65%, 2.75rem);
+}
+.complaint-chart--weekly .complaint-chart-bar { width: 100%; height: var(--bar-size); }
+
+@media (max-width: 480px) {
+    .complaint-chart-plot { padding-inline: .7rem; }
+    .complaint-chart--weekly .complaint-chart-label { font-size: .64rem; }
+}

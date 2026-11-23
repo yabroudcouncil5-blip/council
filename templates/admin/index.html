@@ -4,6 +4,7 @@
 {% block extrastyle %}
 {{ block.super }}
 <link rel="stylesheet" href="{% static 'core/overview.css' %}">
+<link rel="stylesheet" href="{% static 'core/charts.css' %}">
 {% endblock %}
 
 {% block content %}
@@ -41,6 +42,8 @@
         <a href="/staff/reports/#overdue-assignments">عرض الإحالات المتأخرة ←</a>
     </div>
     {% endif %}
+
+    {% include 'staff/includes/complaint_charts.html' with charts=dashboard_charts only %}
 
     <div class="dashboard-columns">
         <section class="dashboard-panel" aria-labelledby="recent-complaints-heading">

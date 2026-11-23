@@ -1,16 +1,25 @@
-from django.shortcuts import render, redirect, get_object_or_404
-from django.core.exceptions import PermissionDenied
-
-# Create your views here.
+import logging
 import secrets
-from django.http import JsonResponse
-from django.views.decorators.http import require_http_methods
+from pathlib import Path
+
 from django.contrib.auth.decorators import login_required
-from django.db import transaction
-from .models import Complaint, ComplaintStatusHistory
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.validators import validate_email
+from django.db import transaction
+from django.http import HttpResponse, JsonResponse
+from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
+from django.views.decorators.cache import never_cache
+from django.views.decorators.http import require_http_methods
+from PIL import Image, UnidentifiedImageError
+
 from website.views import ctx
-from .tracking import tracking_result, tracking_context
+
+from .models import Complaint, ComplaintStatusHistory
+from .tracking import tracking_context, tracking_result
+
+
+logger = logging.getLogger(__name__)
 
 
 def complaint_form(request):
@@ -32,30 +41,86 @@ def tracking_form(request):
     response['Cache-Control'] = 'no-store'
     return response
 
+PUBLIC_IMAGE_FORMATS = {
+    'image/jpeg': 'JPEG',
+    'image/png': 'PNG',
+    'image/webp': 'WEBP',
+}
+
+
+def valid_complaint_photo(upload):
+    if not 0 < upload.size <= 5 * 1024 * 1024:
+        return False
+    expected_format = PUBLIC_IMAGE_FORMATS.get(upload.content_type)
+    if not expected_format:
+        return False
+    try:
+        with Image.open(upload, formats=[expected_format]) as image:
+            image.load()
+    except (UnidentifiedImageError, OSError, ValueError, SyntaxError, Image.DecompressionBombError):
+        return False
+    finally:
+        upload.seek(0)
+    return True
+
+
 @require_http_methods(['POST'])
 def submit_complaint(request):
+    from core.models import ComplaintCategory
+    from .models import ComplaintAttachment
+
     data = request.POST
-    if not data.get('title') or not data.get('description'): return JsonResponse({'error':'العنوان والوصف مطلوبان'}, status=400)
+    if not data.get('title') or not data.get('description'):
+        return JsonResponse({'error': 'العنوان والوصف مطلوبان'}, status=400)
     if data.get('email'):
-        try: validate_email(data['email'])
-        except Exception: return JsonResponse({'error':'البريد الإلكتروني غير صحيح'}, status=400)
-    uploads = request.FILES.getlist('photos') or ([request.FILES['photo']] if request.FILES.get('photo') else [])
-    if any(upload.size > 5 * 1024 * 1024 or upload.content_type not in {'image/jpeg','image/png','image/webp'} for upload in uploads): return JsonResponse({'error':'الصور يجب أن تكون JPEG أو PNG أو WebP وأقل من 5 ميغابايت لكل صورة'}, status=400)
-    year = __import__('datetime').datetime.now().year
+        try:
+            validate_email(data['email'])
+        except ValidationError:
+            return JsonResponse({'error': 'البريد الإلكتروني غير صحيح'}, status=400)
+
+    uploads = request.FILES.getlist('photos') or request.FILES.getlist('photo')
+    if not uploads:
+        return JsonResponse({'error': 'أرفق صورة واحدة على الأقل لتقديم الشكوى.'}, status=400)
+    if not all(valid_complaint_photo(upload) for upload in uploads):
+        return JsonResponse({'error': 'أرفق صوراً صالحة بصيغة JPEG أو PNG أو WebP، بحد أقصى 5 ميغابايت لكل صورة.'}, status=400)
+
+    year = timezone.localdate().year
     reference = None
     for _ in range(10):
         candidate = f"YBC-{year}-{secrets.randbelow(900000)+100000:06d}"
-        if not Complaint.objects.filter(reference=candidate).exists(): reference = candidate; break
-    if not reference: return JsonResponse({'error':'تعذر إنشاء رقم مرجعي، حاول مجدداً'}, status=503)
-    from core.models import ComplaintCategory
+        if not Complaint.objects.filter(reference=candidate).exists():
+            reference = candidate
+            break
+    if not reference:
+        return JsonResponse({'error': 'تعذر إنشاء رقم مرجعي، حاول مجدداً'}, status=503)
+
     category = ComplaintCategory.objects.filter(pk=data.get('category')).first() if data.get('category') else None
-    complaint = Complaint.objects.create(reference=reference, tracking_hash='', title=data['title'], description=data['description'], name=data.get('name',''), phone=data.get('phone',''), email=data.get('email',''), category=category, location=data.get('location',''))
-    from .models import ComplaintStatusHistory
-    ComplaintStatusHistory.objects.create(complaint=complaint, status=complaint.status, public_message='تم استلام الشكوى')
-    if uploads:
-        from .models import ComplaintAttachment
-        for upload in uploads: ComplaintAttachment.objects.create(complaint=complaint, file=upload, original_name=upload.name)
+    saved_files = []
+    try:
+        with transaction.atomic():
+            complaint = Complaint.objects.create(
+                reference=reference, tracking_hash='', title=data['title'], description=data['description'],
+                name=data.get('name', ''), phone=data.get('phone', ''), email=data.get('email', ''),
+                category=category, location=data.get('location', ''),
+            )
+            ComplaintStatusHistory.objects.create(complaint=complaint, status=complaint.status, public_message='تم استلام الشكوى')
+            for upload in uploads:
+                attachment = ComplaintAttachment(complaint=complaint, original_name=upload.name)
+                extension = PUBLIC_IMAGE_FORMATS[upload.content_type].lower()
+                attachment.file.save(f'{Path(upload.name).stem}.{extension}', upload, save=False)
+                saved_files.append((attachment.file.storage, attachment.file.name))
+                attachment.save()
+    except Exception:
+        logger.exception('Could not save complaint and its attachments')
+        for storage, name in saved_files:
+            try:
+                storage.delete(name)
+            except Exception:
+                logger.exception('Could not clean up a complaint attachment')
+        return JsonResponse({'error': 'تعذر حفظ الشكوى، حاول مجدداً.'}, status=503)
+
     return JsonResponse({'reference': complaint.reference, 'status': complaint.status}, status=201)
+
 
 @require_http_methods(['GET', 'POST'])
 def track_complaint(request):
@@ -87,6 +152,7 @@ def staff_dashboard(request):
     return render(request, 'staff/dashboard.html', {
         **admin.site.each_context(request), 'title': 'مهام القسم',
         'assignments': assignments,
+        'dashboard_date': timezone.now(),
         'notifications': notifications_for(request.user).filter(read=False)[:10],
     })
 
@@ -248,14 +314,16 @@ def complaint_workflow(request):
         return redirect('admin:complaints_complaint_change', complaint_id)
     return redirect('admin:complaints_complaint_changelist')
 
+@never_cache
 @login_required
-def dashboard_report(request):
-    if not request.user.is_staff:
+@require_http_methods(['GET', 'HEAD'])
+def dashboard_report(request, download=False):
+    if not request.user.is_active or not request.user.is_staff:
         return JsonResponse({'error': 'غير مصرح'}, status=403)
     from django.contrib import admin
     from django.db.models import Count, Q
-    from django.utils import timezone
     from core.models import Department
+    from reporting.charts import complaint_charts
     from .workflow import assignments_for, can_review, complaints_for, notifications_for
 
     now = timezone.now()
@@ -295,5 +363,12 @@ def dashboard_report(request):
         'departments': department_rows,
         'overdue_assignments': overdue.select_related('complaint', 'department', 'officer').order_by('due_at')[:20],
         'generated_at': now,
+        'report_charts': complaint_charts(visible_complaints, counts, overdue, now),
     }
+    if download:
+        from reporting.pdf import report_pdf
+
+        response = HttpResponse(report_pdf(context), content_type='application/pdf')
+        response['Content-Disposition'] = 'attachment; filename="complaints-report.pdf"'
+        return response
     return render(request, 'staff/reports.html', context)

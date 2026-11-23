@@ -1,5 +1,7 @@
 from django import forms
 from django.contrib import admin
+from django.db.models import Case, IntegerField, OuterRef, Subquery, Value, When
+from django.utils import timezone
 from django.shortcuts import redirect
 from django.template.loader import render_to_string
 from django.urls import path, reverse
@@ -7,12 +9,12 @@ from django.utils.html import format_html
 from unfold.admin import ModelAdmin, StackedInline, TabularInline
 from unfold.widgets import UnfoldAdminSelectWidget, UnfoldAdminTextareaWidget
 from core.admin_widgets import SelectionOnlyRelatedFieldsMixin
-from .workflow import can_review, complaints_for
+from .workflow import assignments_for, can_review, complaints_for
 
 from .models import (
     Complaint, ComplaintAssignment, AssignmentAction, ComplaintAttachment,
     RecoveryRequest, ComplaintReview, ComplaintPublication, InternalNotification,
-    ComplaintStatusHistory,
+    ComplaintStatusHistory, ASSIGNMENT_PRIORITIES,
 )
 
 
@@ -34,9 +36,6 @@ LABELS = {
 ASSIGNMENT_STATES = [
     ('assigned', 'مسندة'), ('in_progress', 'قيد التنفيذ'), ('submitted', 'بانتظار الاعتماد'),
     ('approved', 'معتمدة'), ('returned', 'معادة للاستكمال'), ('cancelled', 'ملغاة'),
-]
-ASSIGNMENT_PRIORITIES = [
-    ('low', 'منخفضة'), ('medium', 'متوسطة'), ('high', 'مرتفعة'), ('urgent', 'عاجلة'),
 ]
 
 
@@ -155,7 +154,7 @@ class AssignmentRecordInline(WorkflowRecordInline):
 
     @admin.display(description='الأولوية')
     def priority_label(self, obj):
-        return dict(ASSIGNMENT_PRIORITIES).get(obj.priority, obj.priority)
+        return obj.priority_label
 
 
 class ReviewRecordInline(WorkflowRecordInline):
@@ -180,7 +179,7 @@ class EvidenceRecordInline(WorkflowRecordInline):
 
 @admin.register(Complaint)
 class ComplaintAdmin(CouncilAdmin):
-    list_display = ('reference', 'title', 'category', 'status', 'submitted_at')
+    list_display = ('reference', 'title', 'category', 'status', 'open_priority', 'open_deadline', 'submitted_at')
     list_filter = ('status', 'category', 'submitted_at')
     search_fields = ('reference', 'title', 'description', 'name', 'phone')
     ordering = ('-submitted_at',)
@@ -197,7 +196,36 @@ class ComplaintAdmin(CouncilAdmin):
     change_form_outer_after_template = 'complaints/admin/workflow_actions.html'
 
     def get_queryset(self, request):
-        return super().get_queryset(request).filter(pk__in=complaints_for(request.user).values('pk'))
+        open_assignments = assignments_for(request.user).filter(
+            complaint_id=OuterRef('pk'),
+        ).exclude(status__in=['approved', 'cancelled'])
+        ranked = open_assignments.annotate(priority_rank=Case(
+            *(When(priority=key, then=Value(rank))
+              for rank, (key, _) in enumerate(ASSIGNMENT_PRIORITIES, start=1)),
+            default=Value(0),
+            output_field=IntegerField(),
+        ))
+        deadlines = open_assignments.filter(due_at__isnull=False).order_by('due_at')
+        return super().get_queryset(request).filter(
+            pk__in=complaints_for(request.user).values('pk'),
+        ).annotate(
+            visible_priority_rank=Subquery(ranked.order_by('-priority_rank').values('priority_rank')[:1]),
+            visible_deadline=Subquery(deadlines.values('due_at')[:1]),
+        )
+
+    @admin.display(description='الأولوية', ordering='visible_priority_rank', empty_value='غير محددة')
+    def open_priority(self, obj):
+        if obj.visible_priority_rank:
+            return ASSIGNMENT_PRIORITIES[obj.visible_priority_rank - 1][1]
+
+    @admin.display(description='المهلة', ordering='visible_deadline', empty_value='غير محددة')
+    def open_deadline(self, obj):
+        if obj.visible_deadline:
+            local_deadline = timezone.localtime(obj.visible_deadline)
+            label = local_deadline.strftime('%Y/%m/%d %H:%M')
+            if obj.visible_deadline < timezone.now():
+                return format_html('<bdi>{}</bdi> <strong>متأخرة</strong>', label)
+            return format_html('<bdi>{}</bdi>', label)
 
     def has_view_permission(self, request, obj=None):
         return bool(request.user.is_staff and (can_review(request.user) or

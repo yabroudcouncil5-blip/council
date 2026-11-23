@@ -1,22 +1,33 @@
-from django.test import TestCase
+from io import BytesIO
+from tempfile import TemporaryDirectory
 
-# Create your tests here.
+from PIL import Image
 from django.test import TestCase, Client, override_settings
 from .models import Complaint, ComplaintStatusHistory, RecoveryRequest
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.contrib.auth.models import User
 from core.models import Department, ComplaintCategory
 
+def complaint_photo():
+    stream = BytesIO()
+    Image.new('RGB', (2, 2)).save(stream, format='PNG')
+    return SimpleUploadedFile('photo.png', stream.getvalue(), content_type='image/png')
+
+
 class ComplaintFlowTests(TestCase):
     def test_anonymous_submission_and_reference_tracking(self):
         client = Client()
-        response = client.post('/api/complaints/', {'title':'إنارة','description':'الشارع مظلم'})
+        with TemporaryDirectory() as media_root, override_settings(MEDIA_ROOT=media_root):
+            response = client.post('/api/complaints/', {
+                'title': 'إنارة', 'description': 'الشارع مظلم', 'photo': complaint_photo(),
+            })
         self.assertEqual(response.status_code, 201)
         data = response.json()
         self.assertEqual(client.post('/api/complaints/track/', {'reference':data['reference']}).status_code, 200)
         self.assertEqual(client.post('/api/complaints/track/', {'reference':'YBC-0000-000000'}).status_code, 404)
         self.assertNotIn('tracking_code', data)
         self.assertEqual(Complaint.objects.count(), 1)
+        self.assertEqual(Complaint.objects.get().attachments.count(), 1)
 
     def test_recovery_request_requires_explanation(self):
         client = Client()
@@ -24,11 +35,18 @@ class ComplaintFlowTests(TestCase):
         self.assertEqual(client.post('/api/complaints/recovery/', {'explanation':'الشكوى عن إنارة قرب المدرسة'}).status_code, 201)
         self.assertEqual(RecoveryRequest.objects.count(), 1)
 
-    def test_invalid_email_and_large_upload_are_rejected(self):
+    def test_invalid_email_and_invalid_uploads_are_rejected(self):
         client = Client()
         self.assertEqual(client.post('/api/complaints/', {'title':'x','description':'y','email':'bad'}).status_code, 400)
-        upload = SimpleUploadedFile('x.exe', b'bad', content_type='application/x-msdownload')
-        self.assertEqual(client.post('/api/complaints/', {'title':'x','description':'y','photo':upload}).status_code, 400)
+        data = {'title': 'x', 'description': 'y'}
+        self.assertEqual(client.post('/api/complaints/', data).status_code, 400)
+        for invalid_photo in (
+            SimpleUploadedFile('x.exe', b'bad', content_type='application/x-msdownload'),
+            SimpleUploadedFile('x.png', b'corrupt', content_type='image/png'),
+            SimpleUploadedFile('x.png', b'x' * (5 * 1024 * 1024 + 1), content_type='image/png'),
+        ):
+            self.assertEqual(client.post('/api/complaints/', {**data, 'photo': invalid_photo}).status_code, 400)
+        self.assertFalse(Complaint.objects.exists())
 
     def test_staff_action_evidence_is_saved_for_supervisor_review(self):
         from .models import ComplaintAssignment, AssignmentAction, ComplaintAttachment
@@ -223,16 +241,35 @@ class StaffReportTests(TestCase):
         self.assertEqual((row.total, row.approved, row.overdue), (3, 1, 1))
         self.assertContains(response, 'REPORT-1')
         self.assertContains(response, 'غير مسندة لموظف')
+        self.assertContains(response, '/staff/reports/pdf/')
+        self.assertContains(response, 'class="dashboard-reports" dir="rtl"')
+        self.assertContains(response, 'complaint-chart--weekly')
+        charts = {chart['variant']: chart['rows'] for chart in response.context['report_charts']}
+        self.assertEqual(sum(row['count'] for row in charts['weekly']), 2)
+        self.assertEqual(charts['overdue'][0]['count'], row.overdue)
+        pdf = self.client.get('/staff/reports/pdf/')
+        self.assertEqual(pdf.status_code, 200)
+        self.assertEqual(pdf['Content-Type'], 'application/pdf')
+        self.assertIn('no-store', pdf['Cache-Control'])
+        self.assertTrue(pdf.content.startswith(b'%PDF-'))
 
     def test_nonstaff_cannot_read_report(self):
         self.user.is_staff = False
         self.user.save()
         self.assertEqual(self.client.get('/staff/reports/').status_code, 403)
+        self.assertEqual(self.client.get('/staff/reports/pdf/').status_code, 403)
 
 
 class PublicComplaintPagesTests(TestCase):
+    def test_public_whatsapp_contact_and_required_photo(self):
+        self.assertContains(self.client.get('/'), 'https://wa.me/963936100228?text=')
+        self.assertContains(self.client.get('/complaints/submit/'), 'name="photo" type="file" required')
+
     def test_tracking_normalizes_reference_and_hides_private_details(self):
-        submitted = self.client.post('/api/complaints/', {'title': 'إنارة الحي', 'description': 'تعطل الإنارة'}).json()
+        with TemporaryDirectory() as media_root, override_settings(MEDIA_ROOT=media_root):
+            submitted = self.client.post('/api/complaints/', {
+                'title': 'إنارة الحي', 'description': 'تعطل الإنارة', 'photo': complaint_photo(),
+            }).json()
         arabic_reference = submitted['reference'].lower().translate(str.maketrans('0123456789', '٠١٢٣٤٥٦٧٨٩'))
         response = self.client.get('/complaints/track/', {
             'reference': '  ' + arabic_reference + '  ',

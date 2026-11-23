@@ -15,15 +15,16 @@
             <div class="dashboard-panel-heading"><h2 id="staff-tasks-heading">الشكاوى المسندة</h2></div>
             <div class="dashboard-table-wrap" tabindex="0" role="region" aria-label="جدول الشكاوى المسندة">
                 <table class="dashboard-table">
-                    <thead><tr><th scope="col">الرقم المرجعي</th><th scope="col">الشكوى والقسم</th><th scope="col">الحالة</th><th scope="col">الموعد المحدد</th></tr></thead>
+                    <thead><tr><th scope="col">الرقم المرجعي</th><th scope="col">الشكوى والقسم</th><th scope="col">الحالة</th><th scope="col">الأولوية</th><th scope="col">المهلة</th></tr></thead>
                     <tbody>{% for item in assignments %}
                     <tr>
                         <td><a class="dashboard-reference" href="{% url 'admin:complaints_complaint_change' item.complaint_id %}"><bdi>{{ item.complaint.reference }}</bdi></a></td>
                         <td><a class="dashboard-subject" href="{% url 'admin:complaints_complaint_change' item.complaint_id %}">{{ item.complaint.title }}</a><small class="dashboard-subtext">{{ item.department.name }}</small></td>
                         <td><span class="dashboard-status">{{ item.complaint.get_status_display }}</span></td>
-                        <td>{% if item.due_at %}<time datetime="{{ item.due_at|date:'c' }}">{{ item.due_at|date:'Y/m/d H:i' }}</time>{% else %}<span class="dashboard-subtext">غير محدد</span>{% endif %}</td>
+                        <td>{{ item.priority_label }}</td>
+                        <td>{% if item.due_at %}<time datetime="{{ item.due_at|date:'c' }}">{{ item.due_at|date:'Y/m/d H:i' }}</time>{% if item.due_at < dashboard_date and item.status != 'approved' and item.status != 'cancelled' %} <strong>متأخرة</strong>{% endif %}{% else %}<span class="dashboard-subtext">غير محددة</span>{% endif %}</td>
                     </tr>
-                    {% empty %}<tr><td colspan="4" class="dashboard-empty">لا توجد مهام مسندة حالياً.</td></tr>{% endfor %}</tbody>
+                    {% empty %}<tr><td colspan="5" class="dashboard-empty">لا توجد مهام مسندة حالياً.</td></tr>{% endfor %}</tbody>
                 </table>
             </div>
         </section>
