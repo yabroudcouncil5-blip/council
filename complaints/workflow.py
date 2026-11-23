@@ -7,9 +7,9 @@ from django.db.models import Q
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 
-from core.models import Department
+from core.models import AuditLog, Department
 from .models import (
-    AssignmentAction, Complaint, ComplaintAssignment, ComplaintAttachment,
+    ASSIGNMENT_PRIORITIES, AssignmentAction, Complaint, ComplaintAssignment, ComplaintAttachment,
     ComplaintPublication, ComplaintReview, ComplaintStatusHistory, InternalNotification,
 )
 
@@ -18,6 +18,7 @@ ACTIVE = {'assigned', 'in_progress', 'submitted', 'returned'}
 ACTION_LABELS = {
     'assign': 'إحالة إلى قسم', 'start': 'بدء المعالجة',
     'note': 'حفظ ملاحظة داخلية فقط',
+    'update_priority': 'تغيير أولوية الإحالة',
     'submit': 'إرسال الإجراء والأدلة للمراجعة',
     'approved': 'اعتماد وإغلاق ونشر', 'closed': 'إغلاق دون معالجة ونشر السبب',
     'returned': 'إعادة إلى القسم نفسه', 'additional_assignment': 'تحويل إلى قسم آخر',
@@ -78,17 +79,29 @@ def notifications_for(user):
     )
 
 
+def priority_edit_assignments(user, complaint):
+    assignments = complaint.assignments.filter(status__in=ACTIVE)
+    if complaint.status in TERMINAL or not user.is_active or not user.is_staff:
+        return assignments.none()
+    if user.is_superuser:
+        return assignments
+    if not can_review(user) or not user.groups.filter(name='Department Manager').exists():
+        return assignments.none()
+    return assignments.filter(department__active=True, department__members=user)
+
+
 def available_actions(user, complaint):
     if can_review(user):
+        priority_action = ['update_priority'] if priority_edit_assignments(user, complaint).exists() else []
         if complaint.status in TERMINAL:
             return ['publish', 'additional_assignment']
         if complaint.status in {'submitted', 'under_review'}:
-            return ['assign', 'closed']
+            return ['assign', 'closed'] + priority_action
         if complaint.status == 'final_review':
-            return ['approved', 'returned', 'additional_assignment', 'closed']
+            return ['approved', 'returned', 'additional_assignment', 'closed'] + priority_action
         work = [item for item in complaint.assignments.filter(status__in=['assigned', 'returned', 'in_progress']) if can_work(user, item)]
         choices = (['start'] if any(item.status != 'in_progress' for item in work) else []) + (['note', 'submit'] if work else [])
-        return choices + ['additional_assignment', 'closed']
+        return choices + ['additional_assignment', 'closed'] + priority_action
     assignments = complaint.assignments.filter(status__in=['assigned', 'returned', 'in_progress']).select_related('department')
     if complaint.status not in TERMINAL and any(can_work(user, item) for item in assignments):
         return (['start'] if any(item.status in {'assigned', 'returned'} and can_work(user, item) for item in assignments) else []) + ['note', 'submit']
@@ -151,6 +164,24 @@ def transition(complaint_id, user, action, *, department_id=None, assignment_id=
         raise PermissionDenied
     if version and version != complaint.updated_at.isoformat():
         raise WorkflowError('تغيرت الشكوى منذ فتحها. حدّث الصفحة وراجع آخر إجراء.', 409)
+    if action == 'update_priority':
+        assignment = priority_edit_assignments(user, complaint).filter(pk=assignment_id).first()
+        if not assignment:
+            raise PermissionDenied
+        if priority not in dict(ASSIGNMENT_PRIORITIES):
+            raise WorkflowError('اختر أولوية صحيحة.')
+        if priority != assignment.priority:
+            previous = assignment.priority
+            assignment.priority = priority
+            assignment.save(update_fields=('priority',))
+            complaint.save(update_fields=('updated_at',))
+            AuditLog.objects.create(
+                actor=user, action='complaint_assignment_priority_changed',
+                target_type='ComplaintAssignment', target_id=str(assignment.pk),
+                metadata={'previous': previous, 'priority': priority},
+            )
+        return complaint, assignment
+
     uploads = list(uploads)
     validate_evidence(uploads)
     evidence_ids = [str(pk) for pk in evidence_ids]
@@ -177,7 +208,7 @@ def transition(complaint_id, user, action, *, department_id=None, assignment_id=
         department = Department.objects.filter(pk=department_id, active=True).first()
         if not department:
             raise WorkflowError('اختر قسماً نشطاً لإحالة الشكوى.')
-        if priority not in {'low', 'medium', 'high', 'urgent'}:
+        if priority not in dict(ASSIGNMENT_PRIORITIES):
             raise WorkflowError('اختر أولوية صحيحة.')
         if isinstance(due_at, str) and due_at:
             due_at = parse_datetime(due_at)

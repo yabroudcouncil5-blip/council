@@ -1,6 +1,7 @@
 from django import forms
 from django.contrib import admin
 from django.db.models import Case, IntegerField, OuterRef, Subquery, Value, When
+from django.db.models.functions import Coalesce
 from django.utils import timezone
 from django.shortcuts import redirect
 from django.template.loader import render_to_string
@@ -14,7 +15,7 @@ from .workflow import assignments_for, can_review, complaints_for
 from .models import (
     Complaint, ComplaintAssignment, AssignmentAction, ComplaintAttachment,
     RecoveryRequest, ComplaintReview, ComplaintPublication, InternalNotification,
-    ComplaintStatusHistory, ASSIGNMENT_PRIORITIES,
+    ComplaintStatusHistory, ASSIGNMENT_PRIORITIES, ASSIGNMENT_STATES,
 )
 
 
@@ -33,10 +34,6 @@ LABELS = {
     'contact': 'وسيلة التواصل', 'file': 'الملف', 'original_name': 'اسم الملف الأصلي',
     'uploaded_at': 'تاريخ الرفع', 'user': 'الموظف المستلم', 'message': 'نص التنبيه', 'read': 'مقروء',
 }
-ASSIGNMENT_STATES = [
-    ('assigned', 'مسندة'), ('in_progress', 'قيد التنفيذ'), ('submitted', 'بانتظار الاعتماد'),
-    ('approved', 'معتمدة'), ('returned', 'معادة للاستكمال'), ('cancelled', 'ملغاة'),
-]
 
 
 class CouncilAdmin(SelectionOnlyRelatedFieldsMixin, ModelAdmin):
@@ -177,12 +174,27 @@ class EvidenceRecordInline(WorkflowRecordInline):
         return 'منشور مع النتيجة المعتمدة' if visible else 'داخلي — للمراجعة فقط'
 
 
+class ComplaintAttentionFilter(admin.SimpleListFilter):
+    title = 'المتابعة'
+    parameter_name = 'attention'
+
+    def lookups(self, request, model_admin):
+        return (('urgent', 'عاجلة جداً'), ('overdue', 'متأخرة'))
+
+    def queryset(self, request, queryset):
+        if self.value() == 'urgent':
+            return queryset.filter(visible_priority_rank=len(ASSIGNMENT_PRIORITIES))
+        if self.value() == 'overdue':
+            return queryset.filter(visible_deadline__lt=timezone.now())
+        return queryset
+
+
 @admin.register(Complaint)
 class ComplaintAdmin(CouncilAdmin):
     list_display = ('reference', 'title', 'category', 'status', 'open_priority', 'open_deadline', 'submitted_at')
-    list_filter = ('status', 'category', 'submitted_at')
+    list_filter = (ComplaintAttentionFilter, 'status', 'category', 'submitted_at')
+    change_list_template = 'complaints/admin/complaint_list.html'
     search_fields = ('reference', 'title', 'description', 'name', 'phone')
-    ordering = ('-submitted_at',)
     list_select_related = ('category',)
     readonly_fields = ('reference', 'status', 'submitted_at', 'updated_at', 'staff_actions_review')
     fieldsets = (
@@ -209,14 +221,20 @@ class ComplaintAdmin(CouncilAdmin):
         return super().get_queryset(request).filter(
             pk__in=complaints_for(request.user).values('pk'),
         ).annotate(
-            visible_priority_rank=Subquery(ranked.order_by('-priority_rank').values('priority_rank')[:1]),
+            visible_priority_rank=Coalesce(
+                Subquery(ranked.order_by('-priority_rank').values('priority_rank')[:1]), Value(0),
+            ),
             visible_deadline=Subquery(deadlines.values('due_at')[:1]),
-        )
+        ).alias(
+            urgent_first=Case(When(visible_priority_rank=len(ASSIGNMENT_PRIORITIES), then=Value(1)), default=Value(0)),
+            overdue_first=Case(When(visible_deadline__lt=timezone.now(), then=Value(1)), default=Value(0)),
+        ).order_by('-urgent_first', '-overdue_first', '-submitted_at')
 
     @admin.display(description='الأولوية', ordering='visible_priority_rank', empty_value='غير محددة')
     def open_priority(self, obj):
         if obj.visible_priority_rank:
-            return ASSIGNMENT_PRIORITIES[obj.visible_priority_rank - 1][1]
+            key, label = ASSIGNMENT_PRIORITIES[obj.visible_priority_rank - 1]
+            return format_html('<span class="followup-badge followup-badge--{}">{}</span>', key, label)
 
     @admin.display(description='المهلة', ordering='visible_deadline', empty_value='غير محددة')
     def open_deadline(self, obj):
@@ -224,8 +242,11 @@ class ComplaintAdmin(CouncilAdmin):
             local_deadline = timezone.localtime(obj.visible_deadline)
             label = local_deadline.strftime('%Y/%m/%d %H:%M')
             if obj.visible_deadline < timezone.now():
-                return format_html('<bdi>{}</bdi> <strong>متأخرة</strong>', label)
-            return format_html('<bdi>{}</bdi>', label)
+                return format_html(
+                    '<span class="followup-deadline"><strong class="followup-badge followup-badge--overdue">متأخرة</strong>'
+                    '<time datetime="{}"><bdi>{}</bdi></time></span>', local_deadline.isoformat(), label,
+                )
+            return format_html('<time datetime="{}"><bdi>{}</bdi></time>', local_deadline.isoformat(), label)
 
     def has_view_permission(self, request, obj=None):
         return bool(request.user.is_staff and (can_review(request.user) or

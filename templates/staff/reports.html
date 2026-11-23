@@ -23,6 +23,19 @@
 </section>
 {% if not total_complaints %}<div class="report-panel report-empty">لا توجد شكاوى مسجلة بعد. ستظهر المؤشرات تلقائياً عند استقبال الشكاوى وإسناد المهام.</div>{% endif %}
 {% include 'staff/includes/complaint_charts.html' with charts=report_charts only %}
+<section class="report-panel" aria-labelledby="weekly-table-heading">
+    <div class="report-panel-heading"><h2 id="weekly-table-heading">الوارد حسب الأسبوع</h2></div>
+    <div class="report-table-wrap">
+        <table class="report-table">
+            <thead><tr><th scope="col">بداية الأسبوع</th><th scope="col">الشكاوى الواردة</th></tr></thead>
+            <tbody>
+                {% for row in weekly_rows %}
+                <tr><th scope="row"><time datetime="{{ row.week|date:'Y-m-d' }}"><bdi>{{ row.week|date:'Y/m/d' }}</bdi></time></th><td>{{ row.count }}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
 <div class="report-columns">
  <section class="report-panel">
     <div class="report-panel-heading"><h2>الشكاوى حسب الحالة</h2></div>

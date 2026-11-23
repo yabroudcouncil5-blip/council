@@ -298,3 +298,41 @@ html[dir="rtl"] #content table th, html[dir="rtl"] #content table td { text-alig
     .dashboard-inline-field.field-file { grid-column: auto; }
     .dashboard-inline-records { padding-inline: 12px; }
 }
+
+.followup-badge,
+.followup-filters a {
+    display: inline-flex;
+    align-items: center;
+    width: fit-content;
+    padding: .22rem .62rem;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    background: var(--dashboard-subtle);
+    color: var(--dashboard-ink);
+    font-size: .8rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.followup-badge--urgent,
+.followup-filters .followup-badge--urgent { background: #ffedef; color: #921f36; border-color: #f7c2ca; }
+.followup-badge--overdue,
+.followup-filters .followup-badge--overdue { background: #fff1e2; color: #894210; border-color: #f2cb9e; }
+.followup-badge--high { background: #eeeafa; color: #543888; border-color: #dad0ef; }
+.followup-badge--medium { background: #e7f4ef; color: #185e4d; border-color: #c9e8dc; }
+
+.dark .followup-badge--urgent,
+.dark .followup-filters .followup-badge--urgent { background: #4c202d; color: #ffc1cb; border-color: #784054; }
+.dark .followup-badge--overdue,
+.dark .followup-filters .followup-badge--overdue { background: #4b2d18; color: #ffd2a7; border-color: #795336; }
+.dark .followup-badge--high { background: #342744; color: #ded0fc; border-color: #5a4773; }
+.dark .followup-badge--medium { background: #183a32; color: #bce8d8; border-color: #315b4f; }
+
+.followup-deadline { display: inline-flex; align-items: center; flex-wrap: wrap; gap: .35rem; }
+.followup-deadline time { font-variant-numeric: tabular-nums; }
+.followup-filters { display: flex; flex-wrap: wrap; gap: .55rem; margin: .4rem 0 1rem; }
+.followup-filters a { min-height: 2.5rem; padding-inline: .85rem; }
+.followup-filters a:hover,
+.followup-filters a[aria-current] { border-color: currentColor; }
+.followup-filters a[aria-current] { box-shadow: inset 0 0 0 1px currentColor; }
+.followup-filters a:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }

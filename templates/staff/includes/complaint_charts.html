@@ -3,22 +3,65 @@
 <div class="complaint-charts" dir="rtl">
     {% for chart in charts %}
     <section class="complaint-chart complaint-chart--{{ chart.variant }}" aria-labelledby="complaint-chart-{{ chart.variant }}">
-        <header>
+        <header class="complaint-chart-header">
             <h2 id="complaint-chart-{{ chart.variant }}">{{ chart.title }}</h2>
-            <p>{{ chart.caption }}</p>
+            {% if chart.caption %}<p>{{ chart.caption }}</p>{% endif %}
         </header>
         {% if chart.rows %}
-        <ol class="complaint-chart-plot" role="list">
-            {% for row in chart.rows %}
-            <li>
-                <bdi class="complaint-chart-label">{{ row.label }}</bdi>
-                <span class="complaint-chart-track" aria-hidden="true">
-                    <span class="complaint-chart-bar" style="--bar-size: {{ row.percent|unlocalize }}%"></span>
-                </span>
-                <strong class="complaint-chart-count">{{ row.count }}</strong>
-            </li>
-            {% endfor %}
-        </ol>
+            {% if chart.variant == 'weekly' %}
+            <div class="complaint-chart-weekly"{% if chart.ticks %} style="--axis-intervals: {{ chart.ticks|length|add:"-1"|unlocalize }}"{% endif %}>
+                <div class="complaint-chart-axis" aria-hidden="true">
+                    {% for tick in chart.ticks reversed %}<span>{{ tick }}</span>{% endfor %}
+                </div>
+                <ol class="complaint-chart-weeks" role="list">
+                    {% for row in chart.rows %}
+                    <li>
+                        <bdi class="complaint-chart-date">{{ row.label }}</bdi>
+                        <span class="complaint-chart-column" style="--bar-size: {{ row.percent|unlocalize }}%">
+                            <span class="complaint-chart-bar" aria-hidden="true"></span>
+                            <strong class="complaint-chart-column-value">{{ row.count }}</strong>
+                        </span>
+                    </li>
+                    {% endfor %}
+                </ol>
+            </div>
+            {% elif chart.variant == 'departments' %}
+            <ul class="complaint-chart-legend" role="list">
+                {% for series in chart.series %}
+                <li><span class="complaint-chart-swatch complaint-chart-series--{{ series.key }}" aria-hidden="true"></span>{{ series.label }}</li>
+                {% endfor %}
+            </ul>
+            <ul class="complaint-chart-groups" role="list">
+                {% for row in chart.rows %}
+                <li>
+                    <bdi class="complaint-chart-group-title">{{ row.label }}</bdi>
+                    <ul class="complaint-chart-segments" role="list">
+                        {% for segment in row.segments %}
+                        <li class="complaint-chart-series--{{ segment.key }}">
+                            <span class="complaint-chart-segment-label">{{ segment.label }}</span>
+                            <span class="complaint-chart-track" aria-hidden="true">
+                                <span class="complaint-chart-bar" style="--bar-size: {{ segment.percent|unlocalize }}%"></span>
+                            </span>
+                            <strong class="complaint-chart-count">{{ segment.count }}</strong>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <ol class="complaint-chart-comparison" role="list">
+                {% for row in chart.rows %}
+                <li>
+                    <bdi class="complaint-chart-label">{{ row.label }}</bdi>
+                    <strong class="complaint-chart-count"><bdi>{{ row.count }}</bdi>{% if row.share != None %}<small><bdi>{{ row.share }}٪</bdi></small>{% endif %}</strong>
+                    <span class="complaint-chart-track" aria-hidden="true">
+                        <span class="complaint-chart-bar" style="--bar-size: {{ row.percent|unlocalize }}%"></span>
+                    </span>
+                </li>
+                {% endfor %}
+            </ol>
+            {% endif %}
         {% else %}
         <p class="complaint-chart-empty">لا توجد بيانات لعرضها.</p>
         {% endif %}

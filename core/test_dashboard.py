@@ -53,7 +53,10 @@ class CouncilDashboardTests(TestCase):
         response = self.client.get('/admin/complaints/complaint/')
         self.assertContains(response, 'مرتفعة')
         self.assertContains(response, 'متأخرة')
-        self.assertNotContains(response, 'عاجلة')
+        self.assertNotContains(response, 'class="followup-badge followup-badge--urgent"')
+        attention_url = '/admin/complaints/complaint/?attention='
+        self.assertNotContains(self.client.get(attention_url + 'urgent'), self.complaint.reference)
+        self.assertContains(self.client.get(attention_url + 'overdue'), self.complaint.reference)
         response = self.client.get('/staff/dashboard/')
         self.assertContains(response, 'الأولوية')
         self.assertContains(response, 'متأخرة')
@@ -66,6 +69,47 @@ class CouncilDashboardTests(TestCase):
         self.assertEqual(sum(row['count'] for row in status), 1)
         self.assertEqual(sum(row['count'] for row in weeks), 1)
         self.assertEqual([(row['label'], row['count']) for row in overdue], [(visible_department.name, 1)])
+
+    def test_department_manager_can_change_priority_for_own_open_assignment(self):
+        from django.contrib.auth.models import Group
+        from django.core.exceptions import PermissionDenied
+        from django.urls import reverse
+
+        from complaints.workflow import transition
+        from core.models import AuditLog
+
+        manager = User.objects.create_user('department-lead', is_staff=True)
+        manager.groups.add(Group.objects.create(name='Department Manager'))
+        own_department = Department.objects.create(name='الطرقات')
+        own_department.members.add(manager)
+        other_department = Department.objects.create(name='المياه')
+        own = ComplaintAssignment.objects.create(complaint=self.complaint, department=own_department)
+        other = ComplaintAssignment.objects.create(complaint=self.complaint, department=other_department)
+        prior_status = self.complaint.status
+
+        self.client.force_login(manager)
+        page = self.client.get(reverse('admin:complaints_complaint_change', args=[self.complaint.pk]))
+        self.assertContains(page, 'تغيير أولوية الإحالة')
+        response = self.client.post(reverse('complaint-transition', args=[self.complaint.pk]), {
+            'action': 'update_priority', 'priority_assignment': own.pk, 'priority': 'urgent',
+            'version': self.complaint.updated_at.isoformat(),
+        })
+        self.assertEqual(response.status_code, 302)
+        own.refresh_from_db()
+        self.complaint.refresh_from_db()
+        self.assertEqual(own.priority, 'urgent')
+        self.assertEqual(self.complaint.status, prior_status)
+        self.assertEqual(AuditLog.objects.get(target_id=str(own.pk)).metadata['previous'], 'medium')
+        self.assertContains(self.client.get('/admin/complaints/complaint/?attention=urgent'), self.complaint.reference)
+        self.client.force_login(self.admin)
+        self.assertContains(self.client.get('/admin/complaints/complaint/?attention=urgent'), self.complaint.reference)
+
+        newer = Complaint.objects.create(reference='YBC-TEST-NEW', title='بلاغ حديث', description='تفاصيل')
+        listing = self.client.get('/admin/complaints/complaint/')
+        self.assertEqual([row.pk for row in listing.context['cl'].result_list][:2], [self.complaint.pk, newer.pk])
+
+        with self.assertRaises(PermissionDenied):
+            transition(self.complaint.pk, manager, 'update_priority', assignment_id=other.pk, priority='urgent')
 
     def test_assignment_rejects_officer_outside_department(self):
         department = Department.objects.create(name='الطرق')

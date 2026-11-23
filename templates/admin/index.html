@@ -24,6 +24,8 @@
         <a class="dashboard-action" href="/">عرض الموقع العام</a>
     </nav>
 
+    {% if can_view_complaints %}{% include 'complaints/admin/attention_links.html' %}{% endif %}
+
     {% if metrics %}
     <section class="dashboard-metrics" aria-label="مؤشرات الشكاوى">
         {% for metric in metrics %}

@@ -38,8 +38,13 @@ class ComplaintStatusHistory(models.Model):
     def __str__(self):
         return f'{self.complaint.reference} · {self.status}'
 
+ASSIGNMENT_STATES = [
+    ('assigned', 'مسندة'), ('in_progress', 'قيد التنفيذ'), ('submitted', 'بانتظار الاعتماد'),
+    ('approved', 'معتمدة'), ('returned', 'معادة للاستكمال'), ('cancelled', 'ملغاة'),
+]
+
 ASSIGNMENT_PRIORITIES = [
-    ('low', 'منخفضة'), ('medium', 'متوسطة'), ('high', 'مرتفعة'), ('urgent', 'عاجلة'),
+    ('low', 'منخفضة'), ('medium', 'متوسطة'), ('high', 'مرتفعة'), ('urgent', 'عاجلة جداً'),
 ]
 
 
@@ -51,6 +56,10 @@ class ComplaintAssignment(models.Model):
     @property
     def priority_label(self):
         return dict(ASSIGNMENT_PRIORITIES).get(self.priority, self.priority)
+
+    @property
+    def status_label(self):
+        return dict(ASSIGNMENT_STATES).get(self.status, self.status)
 
     def __str__(self):
         return f"{self.complaint.reference} · {self.department.name}"

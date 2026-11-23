@@ -148,11 +148,17 @@ def staff_dashboard(request):
     if not request.user.is_staff: return JsonResponse({'error':'غير مصرح'}, status=403)
     from django.contrib import admin
     from .workflow import assignments_for, notifications_for
-    assignments = assignments_for(request.user).select_related('complaint', 'department').order_by('-assigned_at')
+    from django.db.models import Case, Q, Value, When
+    now = timezone.now()
+    open_work = ~Q(status__in=['approved', 'cancelled'])
+    assignments = assignments_for(request.user).select_related('complaint', 'department').annotate(
+        is_overdue=Case(When(open_work & Q(due_at__lt=now), then=Value(True)), default=Value(False)),
+    ).alias(
+        urgent_first=Case(When(open_work & Q(priority='urgent'), then=Value(True)), default=Value(False)),
+    ).order_by('-urgent_first', '-is_overdue', '-assigned_at', '-pk')
     return render(request, 'staff/dashboard.html', {
         **admin.site.each_context(request), 'title': 'مهام القسم',
         'assignments': assignments,
-        'dashboard_date': timezone.now(),
         'notifications': notifications_for(request.user).filter(read=False)[:10],
     })
 
@@ -224,6 +230,7 @@ def complaint_transition(request, complaint_id):
             complaint, _ = transition(
                 complaint.pk, request.user, data['action'],
                 department_id=data['department'].pk if data.get('department') else None,
+                assignment_id=data['priority_assignment'].pk if data.get('priority_assignment') else None,
                 internal_note=data.get('internal_note', ''), public_message=data.get('public_message', ''),
                 priority=data.get('priority') or 'medium', due_at=data.get('due_at'),
                 evidence_ids=[item.pk for item in data.get('evidence_ids', [])],
@@ -234,8 +241,13 @@ def complaint_transition(request, complaint_id):
             form.add_error(None, error.message)
             status = error.status
         else:
-            messages.success(request, 'تم حفظ الملاحظة الداخلية دون تغيير مرحلة الشكوى أو التتبع العام.'
-                             if data['action'] == 'note' else 'تم حفظ الإجراء وتحديث مرحلة الشكوى وسجل التتبع تلقائياً.')
+            success_messages = {
+                'note': 'تم حفظ الملاحظة الداخلية دون تغيير مرحلة الشكوى أو التتبع العام.',
+                'update_priority': 'تم حفظ أولوية الإحالة.',
+            }
+            messages.success(request, success_messages.get(
+                data['action'], 'تم حفظ الإجراء وتحديث مرحلة الشكوى وسجل التتبع تلقائياً.',
+            ))
             return redirect('admin:complaints_complaint_change', complaint.pk)
     return render(request, 'complaints/admin/workflow_error.html', {
         **admin.site.each_context(request), 'title': 'مراجعة الإجراء',
@@ -323,7 +335,8 @@ def dashboard_report(request, download=False):
     from django.contrib import admin
     from django.db.models import Count, Q
     from core.models import Department
-    from reporting.charts import complaint_charts
+    from reporting.charts import report_charts
+    from .models import ASSIGNMENT_STATES
     from .workflow import assignments_for, can_review, complaints_for, notifications_for
 
     now = timezone.now()
@@ -334,11 +347,6 @@ def dashboard_report(request, download=False):
     overdue = visible_assignments.filter(due_at__lt=now).exclude(status__in=['approved', 'cancelled'])
     total = sum(counts.values())
     completed = counts.get('completed', 0)
-    assignment_labels = [
-        ('assigned', 'مسندة'), ('in_progress', 'قيد التنفيذ'),
-        ('submitted', 'بانتظار الاعتماد'), ('approved', 'معتمدة'),
-        ('returned', 'معادة للاستكمال'), ('cancelled', 'ملغاة'),
-    ]
     departments = Department.objects.all() if can_review(request.user) else Department.objects.filter(active=True, members=request.user)
     scope = Q(complaintassignment__in=visible_assignments)
     department_rows = departments.annotate(
@@ -346,6 +354,11 @@ def dashboard_report(request, download=False):
         approved=Count('complaintassignment', filter=scope & Q(complaintassignment__status='approved')),
         overdue=Count('complaintassignment', filter=scope & Q(complaintassignment__due_at__lt=now) & ~Q(complaintassignment__status__in=['approved', 'cancelled'])),
     ).order_by('-total', 'name')
+    assignment_rows = [
+        {'label': dict(ASSIGNMENT_STATES).get(status, status), 'count': count}
+        for status, count in sorted(assignment_counts.items())
+    ]
+    charts = report_charts(visible_complaints, counts, assignment_rows, department_rows, now)
     context = {
         **admin.site.each_context(request),
         'title': 'التقارير والمتابعة',
@@ -358,16 +371,17 @@ def dashboard_report(request, download=False):
         'complaint_rows': [{'label': label, 'status': status, 'count': counts.get(status, 0),
                             'percent': round(counts.get(status, 0) * 100 / total) if total else 0}
                            for status, label in Complaint.STATUS],
-        'assignment_rows': [{'label': dict(assignment_labels).get(status, status), 'count': count}
-                            for status, count in sorted(assignment_counts.items())],
+        'assignment_rows': assignment_rows,
         'departments': department_rows,
         'overdue_assignments': overdue.select_related('complaint', 'department', 'officer').order_by('due_at')[:20],
         'generated_at': now,
-        'report_charts': complaint_charts(visible_complaints, counts, overdue, now),
+        'report_charts': charts,
+        'weekly_rows': charts[0]['rows'],
     }
     if download:
         from reporting.pdf import report_pdf
 
+        context.update(ctx())
         response = HttpResponse(report_pdf(context), content_type='application/pdf')
         response['Content-Disposition'] = 'attachment; filename="complaints-report.pdf"'
         return response

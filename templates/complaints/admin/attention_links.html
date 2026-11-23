@@ -1,0 +1,5 @@
+<nav class="followup-filters" aria-label="متابعة الشكاوى">
+    {% if cl %}<a href="{% url 'admin:complaints_complaint_changelist' %}" {% if not request.GET.attention %}aria-current="true"{% endif %}>كل الشكاوى</a>{% endif %}
+    <a class="followup-badge--urgent" href="{% url 'admin:complaints_complaint_changelist' %}?attention=urgent" {% if request.GET.attention == 'urgent' %}aria-current="true"{% endif %}>عاجلة جداً</a>
+    <a class="followup-badge--overdue" href="{% url 'admin:complaints_complaint_changelist' %}?attention=overdue" {% if request.GET.attention == 'overdue' %}aria-current="true"{% endif %}>متأخرة</a>
+</nav>

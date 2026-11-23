@@ -2,8 +2,8 @@ from django import forms
 from unfold.widgets import UnfoldAdminSelectWidget, UnfoldAdminTextareaWidget
 
 from core.models import Department
-from .models import AssignmentAction, ComplaintAttachment
-from .workflow import ACTION_LABELS, available_actions, can_review
+from .models import ASSIGNMENT_PRIORITIES, AssignmentAction, ComplaintAssignment, ComplaintAttachment
+from .workflow import ACTION_LABELS, available_actions, can_review, priority_edit_assignments
 
 
 class MultipleEvidenceInput(forms.ClearableFileInput):
@@ -23,7 +23,13 @@ class ComplaintWorkflowForm(forms.Form):
     department = forms.ModelChoiceField(label='القسم المختص', queryset=Department.objects.filter(active=True),
                                         required=False, empty_label='اختر القسم', widget=UnfoldAdminSelectWidget)
     priority = forms.ChoiceField(label='الأولوية', required=False, initial='medium', widget=UnfoldAdminSelectWidget,
-                                choices=[('medium', 'عادية'), ('high', 'مرتفعة'), ('urgent', 'عاجلة'), ('low', 'منخفضة')])
+                                choices=ASSIGNMENT_PRIORITIES)
+    priority_assignment = forms.ModelChoiceField(
+        label='الإحالة المراد تعديلها', queryset=ComplaintAssignment.objects.none(),
+        required=False, widget=UnfoldAdminSelectWidget(
+            attrs={'x-bind:disabled': "action !== 'update_priority'"},
+        ),
+    )
     due_at = forms.DateTimeField(label='الموعد المحدد', required=False,
                                 widget=forms.DateTimeInput(attrs={'type': 'datetime-local'}))
     internal_note = forms.CharField(label='الملاحظات الداخلية وتفاصيل الإجراء', required=False,
@@ -48,6 +54,13 @@ class ComplaintWorkflowForm(forms.Form):
         actions = available_actions(user, complaint)
         self.fields['action'].choices = [('', 'اختر الإجراء'), *[(action, ACTION_LABELS[action]) for action in actions]]
         self.fields['action'].widget.attrs['x-model'] = 'action'
+        if 'update_priority' in actions:
+            self.fields['priority_assignment'].queryset = priority_edit_assignments(
+                user, complaint,
+            ).select_related('department').order_by('-assigned_at', '-pk')
+            self.fields['priority_assignment'].label_from_instance = (
+                lambda item: f'{item.department.name} · {item.priority_label}'
+            )
         self.fields['version'].initial = complaint.updated_at.isoformat()
         self.fields['evidence_ids'].queryset = complaint.attachments.filter(source='staff').order_by('uploaded_at')
         self.fields['evidence_ids'].label_from_instance = lambda item: item.original_name or item.file.name
@@ -69,6 +82,11 @@ class ComplaintWorkflowForm(forms.Form):
     def clean(self):
         data = super().clean()
         action = data.get('action')
+        if action == 'update_priority':
+            if not data.get('priority_assignment'):
+                self.add_error('priority_assignment', 'اختر إحالة مفتوحة ضمن قسمك.')
+            if not data.get('priority'):
+                self.add_error('priority', 'اختر الأولوية الجديدة.')
         if action == 'note' and not data.get('internal_note', '').strip():
             self.add_error('internal_note', 'اكتب الملاحظة الداخلية قبل حفظها.')
         if action in {'assign', 'additional_assignment'} and not data.get('department'):

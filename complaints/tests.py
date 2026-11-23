@@ -246,12 +246,27 @@ class StaffReportTests(TestCase):
         self.assertContains(response, 'complaint-chart--weekly')
         charts = {chart['variant']: chart['rows'] for chart in response.context['report_charts']}
         self.assertEqual(sum(row['count'] for row in charts['weekly']), 2)
-        self.assertEqual(charts['overdue'][0]['count'], row.overdue)
+        self.assertEqual(sum(item['count'] for item in charts['assignment']), 3)
+        self.assertEqual(
+            {segment['key']: segment['count'] for segment in charts['departments'][0]['segments']},
+            {'total': row.total, 'approved': row.approved, 'overdue': row.overdue},
+        )
+        self.assertContains(response, 'الوارد حسب الأسبوع')
         pdf = self.client.get('/staff/reports/pdf/')
         self.assertEqual(pdf.status_code, 200)
         self.assertEqual(pdf['Content-Type'], 'application/pdf')
         self.assertIn('no-store', pdf['Cache-Control'])
         self.assertTrue(pdf.content.startswith(b'%PDF-'))
+
+    def test_pdf_embeds_configured_council_logo(self):
+        from core.models import CouncilSettings
+
+        with TemporaryDirectory() as media_root, override_settings(MEDIA_ROOT=media_root):
+            CouncilSettings.objects.create(name='مجلس مدينة يبرود', logo=complaint_photo())
+            response = self.client.get('/staff/reports/pdf/')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b'/Subtype /Image', response.content)
 
     def test_nonstaff_cannot_read_report(self):
         self.user.is_staff = False
@@ -262,7 +277,9 @@ class StaffReportTests(TestCase):
 
 class PublicComplaintPagesTests(TestCase):
     def test_public_whatsapp_contact_and_required_photo(self):
-        self.assertContains(self.client.get('/'), 'https://wa.me/963936100228?text=')
+        response = self.client.get('/')
+        self.assertContains(response, 'https://wa.me/963936100228?text=')
+        self.assertContains(response, 'aria-label="تواصل عبر واتساب"')
         self.assertContains(self.client.get('/complaints/submit/'), 'name="photo" type="file" required')
 
     def test_tracking_normalizes_reference_and_hides_private_details(self):

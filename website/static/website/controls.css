@@ -86,22 +86,32 @@
     inset-inline-end: max(1rem, env(safe-area-inset-left));
     bottom: max(1rem, env(safe-area-inset-bottom));
     z-index: 10;
-    display: inline-flex;
-    align-items: center;
-    min-height: 44px;
-    padding-inline: 1rem;
-    border-radius: 999px;
-    background: #086348;
+    display: inline-grid;
+    place-items: center;
+    width: 3.5rem;
+    height: 3.5rem;
+    border: 2px solid #fff;
+    border-radius: 50%;
+    background: #087e50;
     color: #fff;
-    box-shadow: 0 4px 14px #102c2840;
-    font-weight: 700;
+    box-shadow: 0 4px 16px #102c2838;
     text-decoration: none;
+}
+
+.whatsapp-contact .site-icon {
+    width: 1.85rem;
+    height: 1.85rem;
 }
 
 .whatsapp-contact:hover,
 .whatsapp-contact:focus-visible {
-    background: #064e39;
+    background: #066742;
     color: #fff;
+}
+
+.whatsapp-contact:focus-visible {
+    outline: 2px solid #066742;
+    outline-offset: 3px;
 }
 
 .site-footer {
