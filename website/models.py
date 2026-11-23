@@ -36,6 +36,7 @@ class Page(models.Model):
     title = models.CharField(max_length=200, verbose_name='عنوان الصفحة')
     body = models.TextField(verbose_name='المحتوى')
     published = models.BooleanField(default=False, verbose_name='منشور')
+    show_in_footer = models.BooleanField(default=False, verbose_name='إظهار في تذييل الموقع')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='آخر تحديث')
 
 class NewsArticle(models.Model):

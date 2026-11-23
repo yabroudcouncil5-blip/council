@@ -27,6 +27,10 @@ def can_view_departments(request):
     return _has_any(request.user, 'core.view_department', 'core.change_department')
 
 
+def can_view_complaint_categories(request):
+    return _has_any(request.user, 'core.view_complaintcategory')
+
+
 def can_view_executive_team(request):
     return _has_any(request.user, 'website.view_executivemember', 'website.change_executivemember')
 

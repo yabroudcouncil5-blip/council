@@ -53,7 +53,18 @@ def content_image(request, filename):
 def page(request, slug):
     item = get_object_or_404(Page, slug=slug, published=True)
     return render(request, 'website/page.html', {**ctx(), 'title': item.title, 'body': item.body})
-def ctx(): return {'council': CouncilSettings.objects.order_by('-updated_at').first() or {'name':'بلدية يبرود','description':'خدمة المدينة وأهلها بشفافية ومسؤولية.','phone':'011-0000000','email':'info@yabroud.gov.sy'}}
+def ctx():
+    footer_pages = list(Page.objects.filter(published=True, show_in_footer=True).only('slug', 'title').order_by('title'))
+    return {
+        'council': CouncilSettings.objects.order_by('-updated_at').first() or {
+            'name': 'بلدية يبرود', 'description': 'خدمة المدينة وأهلها بشفافية ومسؤولية.',
+            'phone': '011-0000000', 'email': 'info@yabroud.gov.sy',
+        },
+        'footer_pages': footer_pages,
+        'show_services_shortcuts': any(item.slug == 'services' for item in footer_pages),
+    }
+
+
 def home(request):
     context = {**ctx(), 'news': NewsArticle.objects.filter(published=True)[:3], **tracking_context(request.GET)}
     response = render(request, 'website/home.html', context)
@@ -61,12 +72,12 @@ def home(request):
         response['Cache-Control'] = 'no-store'
     return response
 
-def simple(request, slug):
-    if slug == 'about':
-        return render(request, 'website/about.html', {
-            **ctx(), 'city_page': Page.objects.filter(slug='about', published=True).first(),
-        })
-    item=Page.objects.filter(slug=slug,published=True).first(); fallback={'about':('عن البلدية','تعمل بلدية يبرود على تقديم الخدمات البلدية وتحسين المدينة.'),'services':('الخدمات البلدية','النظافة والبيئة، الطرق والإنارة، المياه والصرف الصحي، والخدمات الإدارية.')}; title,body=(item.title,item.body) if item else fallback.get(slug,('بلدية يبرود','المحتوى قيد التحديث.')); return render(request,'website/page.html',{**ctx(),'title':title,'body':body})
+def about(request):
+    return render(request, 'website/about.html', {
+        **ctx(), 'city_page': Page.objects.filter(slug='about', published=True).first(),
+    })
+
+
 def news(request): return render(request,'website/news.html',{**ctx(),'news':NewsArticle.objects.filter(published=True)})
 def news_detail(request, pk):
     item = get_object_or_404(NewsArticle, pk=pk, published=True)
@@ -76,10 +87,20 @@ def news_detail(request, pk):
 @require_safe
 def news_image(request, pk):
     article = get_object_or_404(NewsArticle, pk=pk, published=True)
-    if not article.featured_image or not article.featured_image.name.startswith('news/'):
+    return public_image_response(article.featured_image, 'news/')
+
+
+@require_safe
+def executive_member_photo(request, pk):
+    member = get_object_or_404(ExecutiveMember, pk=pk, active=True)
+    return public_image_response(member.photo, 'council/team/')
+
+
+def public_image_response(field, directory):
+    if not field or not field.name.startswith(directory):
         raise Http404
     try:
-        stream = article.featured_image.open('rb')
+        stream = field.open('rb')
     except FileNotFoundError:
         raise Http404 from None
 
@@ -98,5 +119,13 @@ def news_image(request, pk):
 
 
 def departments(request): return render(request,'website/departments.html',{**ctx(),'departments':Department.objects.filter(active=True)})
-def council(request): return render(request, 'website/council.html', {**ctx(), 'executive_members': ExecutiveMember.objects.filter(active=True)})
+def council(request):
+    members = list(ExecutiveMember.objects.filter(active=True))
+    for member in members:
+        photo = member.photo
+        member.has_public_photo = bool(
+            photo and photo.name.startswith('council/team/') and photo.storage.exists(photo.name)
+        )
+    return render(request, 'website/council.html', {**ctx(), 'executive_members': members})
+
 def contact(request): return render(request,'website/contact.html',ctx())

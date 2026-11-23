@@ -93,6 +93,7 @@ class AdminSelectionSimplificationTests(TestCase):
 
     def test_superadmin_manages_reference_records_on_dedicated_pages(self):
         self.client.force_login(self.superadmin)
+        self.assertContains(self.client.get('/admin/'), 'href="/admin/core/complaintcategory/"')
         for model, model_class, data in (
             ('department', Department, {'name': 'قسم جديد', 'description': '', 'active': 'on'}),
             ('complaintcategory', ComplaintCategory, {'name': 'تصنيف جديد', 'default_days': 5, 'active': 'on'}),

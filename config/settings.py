@@ -205,6 +205,7 @@ UNFOLD = {
             ]},
             {'title': 'إدارة البلدية', 'separator': True, 'items': [
                 {'title': 'الأقسام', 'icon': 'account_tree', 'link': '/admin/core/department/', 'permission': 'core.admin_permissions.can_view_departments'},
+                {'title': 'تصنيفات الشكاوى', 'icon': 'category', 'link': '/admin/core/complaintcategory/', 'permission': 'core.admin_permissions.can_view_complaint_categories'},
                 {'title': 'الفريق التنفيذي', 'icon': 'groups', 'link': '/admin/website/executivemember/', 'permission': 'core.admin_permissions.can_view_executive_team'},
                 {'title': 'الأخبار والإعلانات', 'icon': 'newspaper', 'link': '/admin/website/newsarticle/', 'permission': 'core.admin_permissions.can_view_news'},
                 {'title': 'صفحات الموقع', 'icon': 'article', 'link': '/admin/website/page/', 'permission': 'core.admin_permissions.can_view_pages'},

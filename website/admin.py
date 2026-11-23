@@ -51,7 +51,7 @@ class ContentImageAdmin(ModelAdmin):
 @admin.register(NewsArticle)
 class NewsArticleAdmin(ModelAdmin):
     form = NewsForm
-    list_display = ('title', 'published', 'published_at', 'created_at')
+    list_display = ('article_title', 'published', 'published_at', 'created_at')
     list_filter = ('published',)
     search_fields = ('title', 'body')
     readonly_fields = ('created_at',)
@@ -59,6 +59,10 @@ class NewsArticleAdmin(ModelAdmin):
         ('محتوى الخبر', {'fields': ('title', 'body', 'featured_image')}),
         ('النشر', {'fields': (('published', 'published_at'), 'created_at')}),
     )
+
+    @admin.display(description='عنوان الخبر', ordering='title')
+    def article_title(self, obj):
+        return obj.title
 
     def formfield_for_dbfield(self, db_field, request, **kwargs):
         if db_field.name == 'title':
@@ -68,16 +72,31 @@ class NewsArticleAdmin(ModelAdmin):
 @admin.register(Page)
 class PageAdmin(ModelAdmin):
     form = PageForm
-    list_display = ('title', 'slug', 'published', 'updated_at', 'view_page')
-    list_filter = ('published',)
+    list_display = ('title', 'slug', 'publication_location', 'updated_at', 'view_page')
+    list_filter = ('published', 'show_in_footer')
     search_fields = ('title', 'slug', 'body')
     prepopulated_fields = {'slug': ('title',)}
-    fieldsets = (('محتوى الصفحة', {'fields': (('title', 'slug'), 'body')}), ('إعدادات النشر', {'fields': ('published',)}))
+    fieldsets = (
+        ('محتوى الصفحة', {'fields': (('title', 'slug'), 'body')}),
+        ('النشر ومكان ظهور الرابط', {'fields': ('published', 'show_in_footer')}),
+    )
+
+    @admin.display(description='مكان الظهور', ordering='published')
+    def publication_location(self, obj):
+        if not obj.published:
+            return 'مسودة'
+        if obj.slug == 'about':
+            return 'القائمة الرئيسية والتذييل' if obj.show_in_footer else 'القائمة الرئيسية'
+        if obj.slug == 'services' and obj.show_in_footer:
+            return 'التذييل واختصارات الخدمات'
+        return 'تذييل الموقع' if obj.show_in_footer else 'رابط مباشر'
 
     @admin.display(description='عرض الصفحة')
     def view_page(self, obj):
-        from django.utils.html import format_html
-        return format_html('<a href="{}" target="_blank" rel="noopener">فتح الموقع ↗</a>', obj.get_absolute_url())
+        if obj.published:
+            from django.utils.html import format_html
+            return format_html('<a href="{}" target="_blank" rel="noopener">فتح الصفحة ↗</a>', obj.get_absolute_url())
+
 
 @admin.register(DepartmentPage)
 class DepartmentPageAdmin(ModelAdmin):

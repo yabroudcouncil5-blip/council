@@ -91,6 +91,76 @@ class CouncilLogoTests(TestCase):
             self.assertEqual(self.client.get(council.logo.url).status_code, 404)
 
 
+class CouncilProfilePhotoTests(TestCase):
+    @override_settings(DEBUG=False, SECURE_SSL_REDIRECT=False)
+    def test_public_profile_photo_is_served_and_inactive_photo_is_hidden(self):
+        from website.models import ExecutiveMember
+
+        with tempfile.TemporaryDirectory() as media, override_settings(MEDIA_ROOT=media):
+            image = BytesIO()
+            Image.new('RGB', (24, 16), '#087f73').save(image, 'PNG')
+            member = ExecutiveMember.objects.create(
+                name='عضو المجلس', role='عضو', bio='نبذة',
+                photo=SimpleUploadedFile('portrait.png', image.getvalue(), content_type='image/png'),
+            )
+            url = f'/council/team/{member.pk}/photo/'
+            self.assertContains(self.client.get('/council/'), f'src="{url}"')
+            response = self.client.get(url)
+            try:
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response['Content-Type'], 'image/png')
+                self.assertEqual(b''.join(response.streaming_content), image.getvalue())
+            finally:
+                response.close()
+
+            member.active = False
+            member.save(update_fields=['active'])
+            self.assertEqual(self.client.get(url).status_code, 404)
+
+            member.active = True
+            member.photo.delete(save=False)
+            member.photo.name = 'council/team/missing.png'
+            member.save(update_fields=['active', 'photo'])
+            self.assertContains(self.client.get('/council/'), 'team-portrait portrait-mark')
+            self.assertNotContains(self.client.get('/council/'), f'src="{url}"')
+            self.assertEqual(self.client.get(url).status_code, 404)
+
+
+class PagePublicationTests(TestCase):
+    def test_public_pages_have_opt_in_footer_links(self):
+        from website.models import Page
+
+        public = Page.objects.create(slug='building-permits', title='تراخيص البناء', body='تراخيص', published=True)
+        draft = Page.objects.create(slug='draft-page', title='صفحة مسودة', body='مسودة', show_in_footer=True)
+        self.assertEqual(self.client.get(public.get_absolute_url()).status_code, 200)
+        self.assertEqual(self.client.get(draft.get_absolute_url()).status_code, 404)
+        self.assertNotContains(self.client.get('/'), f'href="{public.get_absolute_url()}"')
+
+        public.show_in_footer = True
+        public.save(update_fields=['show_in_footer'])
+        for path in ('/', '/complaints/submit/'):
+            response = self.client.get(path)
+            self.assertContains(response, f'<a href="{public.get_absolute_url()}">تراخيص البناء</a>', html=True)
+            self.assertNotContains(response, f'href="{draft.get_absolute_url()}"')
+
+    def test_legacy_services_page_can_be_hidden_or_unpublished(self):
+        from website.models import Page
+
+        services = Page.objects.get(slug='services')
+        self.assertContains(self.client.get('/services/'), services.title)
+        self.assertContains(self.client.get('/'), 'href="/services/"')
+        services.show_in_footer = False
+        services.save(update_fields=['show_in_footer'])
+        self.assertEqual(self.client.get('/services/').status_code, 200)
+        for path in ('/', '/about/'):
+            self.assertNotContains(self.client.get(path), 'href="/services/"')
+
+        services.published = False
+        services.save(update_fields=['published'])
+        for path in ('/services/', '/pages/services/'):
+            self.assertEqual(self.client.get(path).status_code, 404)
+
+
 class PageEditorTests(TestCase):
     def setUp(self):
         self.admin = get_user_model().objects.create_superuser('editor', 'editor@example.com', 'test-password')
