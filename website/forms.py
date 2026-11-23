@@ -18,6 +18,16 @@ class PageForm(forms.ModelForm):
 
 
 class NewsForm(PageForm):
+    featured_image = forms.ImageField(label='الصورة الرئيسية', required=False)
+
+    def clean_featured_image(self):
+        image = self.cleaned_data['featured_image']
+        if getattr(getattr(image, 'image', None), 'format', None) not in {
+            None, 'JPEG', 'PNG', 'WEBP', 'GIF',
+        }:
+            raise forms.ValidationError('اختر صورة بصيغة JPEG أو PNG أو WebP أو GIF.')
+        return image
+
     class Meta(PageForm.Meta):
         model = NewsArticle
         labels = {'title': 'عنوان الخبر أو الإعلان'}

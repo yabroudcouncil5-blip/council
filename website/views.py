@@ -4,7 +4,7 @@ from core.models import CouncilSettings, Department
 from django.contrib import admin
 from django.core.files.base import ContentFile
 from django.http import FileResponse, Http404, JsonResponse
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_POST, require_safe
 from PIL import Image, UnidentifiedImageError
 from io import BytesIO
 import uuid
@@ -71,6 +71,32 @@ def news(request): return render(request,'website/news.html',{**ctx(),'news':New
 def news_detail(request, pk):
     item = get_object_or_404(NewsArticle, pk=pk, published=True)
     return render(request, 'website/news_detail.html', {**ctx(), 'item': item})
+
+
+@require_safe
+def news_image(request, pk):
+    article = get_object_or_404(NewsArticle, pk=pk, published=True)
+    if not article.featured_image or not article.featured_image.name.startswith('news/'):
+        raise Http404
+    try:
+        stream = article.featured_image.open('rb')
+    except FileNotFoundError:
+        raise Http404 from None
+
+    try:
+        with Image.open(stream, formats=('JPEG', 'PNG', 'WEBP', 'GIF')) as image:
+            content_type = Image.MIME[image.format]
+            image.verify()
+        stream.seek(0)
+    except (OSError, ValueError, SyntaxError, Image.DecompressionBombError):
+        stream.close()
+        raise Http404 from None
+
+    response = FileResponse(stream, content_type=content_type)
+    response['X-Content-Type-Options'] = 'nosniff'
+    return response
+
+
 def departments(request): return render(request,'website/departments.html',{**ctx(),'departments':Department.objects.filter(active=True)})
 def council(request): return render(request, 'website/council.html', {**ctx(), 'executive_members': ExecutiveMember.objects.filter(active=True)})
 def contact(request): return render(request,'website/contact.html',ctx())

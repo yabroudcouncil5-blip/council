@@ -1,5 +1,35 @@
 {% extends 'website/base.html' %}{% load static website_content %}
 {% block title %}{{ item.title }} | أخبار يبرود{% endblock %}
-{% block body_class %}news-detail-page{% endblock %}{% block main_class %}news-detail-main{% endblock %}
-{% block extra_head %}<link rel="stylesheet" href="{% static 'website/news.css' %}">{% endblock %}
-{% block content %}<article class="news-detail shell"><nav class="news-breadcrumb" aria-label="مسار التصفح"><a href="/">الرئيسية</a><span>/</span><a href="/news/">الأخبار</a><span>/</span><span aria-current="page">التفاصيل</span></nav><div class="news-detail-heading"><span class="news-meta">أخبار وإعلانات{% if item.published_at %} <bdi>· {{ item.published_at|date:'Y/m/d' }}</bdi>{% endif %}</span><h1>{{ item.title }}</h1></div>{% if item.featured_image %}<figure class="news-detail-image"><img src="{{ item.featured_image.url }}" alt="{{ item.title }}"></figure>{% endif %}<div class="news-detail-body rich-content">{{ item.body|rich_content }}</div><a class="text-link news-back" href="/news/">العودة إلى الأخبار {% include 'website/includes/icon.html' with icon='arrow-left' %}</a></article>{% endblock %}
+{% block body_class %}news-detail-page{% endblock %}
+{% block main_class %}news-detail-main{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'website/news.css' %}">
+<script src="{% static 'website/news-images.js' %}" defer></script>
+{% endblock %}
+{% block content %}
+<article class="news-detail shell" aria-labelledby="news-article-title">
+    <nav class="news-breadcrumb" aria-label="مسار التصفح">
+        <a href="/">الرئيسية</a><span aria-hidden="true">/</span>
+        <a href="/news/">الأخبار</a><span aria-hidden="true">/</span>
+        <span aria-current="page">التفاصيل</span>
+    </nav>
+    <header class="news-detail-heading">
+        <div class="news-detail-meta">
+            <span>أخبار وإعلانات</span>
+            {% with published=item.published_at|default:item.created_at %}
+                <time datetime="{{ published|date:'c' }}"><bdi>{{ published|date:'Y/m/d' }}</bdi></time>
+            {% endwith %}
+        </div>
+        <h1 id="news-article-title">{{ item.title }}</h1>
+    </header>
+    {% if item.featured_image %}
+        <figure class="news-detail-image">
+            <img src="{% url 'news-featured-image' item.pk %}" alt="الصورة الرئيسية للخبر" fetchpriority="high" decoding="async" data-news-image>
+        </figure>
+    {% endif %}
+    <div class="news-detail-body rich-content">{{ item.body|news_content }}</div>
+    <footer class="news-detail-footer">
+        <a class="text-link news-back" href="/news/">العودة إلى الأخبار {% include 'website/includes/icon.html' with icon='arrow-left' %}</a>
+    </footer>
+</article>
+{% endblock %}

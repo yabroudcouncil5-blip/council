@@ -159,9 +159,72 @@ class PageEditorTests(TestCase):
                 response.close()
                 self.assertEqual(self.client.get('/website-images/missing.webp').status_code, 404)
 
+    def test_news_excerpts_decode_editor_spaces_and_preserve_word_breaks(self):
+        from website.models import NewsArticle
+
+        NewsArticle.objects.create(
+            title='إعلان بلدي', published=True,
+            body='<p>تتواصل&nbsp;أعمال&#160;التوسعة</p><p>على<br>طريق ريما &lt;مؤقتاً&gt;</p>',
+        )
+        for path in ('/', '/news/'):
+            with self.subTest(path=path):
+                response = self.client.get(path)
+                self.assertContains(response, 'تتواصل أعمال التوسعة على طريق ريما &lt;مؤقتاً&gt;')
+                self.assertNotContains(response, '&amp;nbsp;')
+
+    def test_published_news_photo_is_served_in_production(self):
+        from website.models import NewsArticle
+
+        with tempfile.TemporaryDirectory() as media, override_settings(
+            MEDIA_ROOT=media, DEBUG=False, SECURE_SSL_REDIRECT=False,
+        ):
+            image = BytesIO()
+            Image.new('RGB', (24, 16), '#087f73').save(image, 'PNG')
+            article = NewsArticle.objects.create(
+                title='خبر البلدية', published=True, body='<p>خبر&nbsp;<strong>هام</strong></p>',
+                featured_image=SimpleUploadedFile('news.png', image.getvalue(), content_type='image/png'),
+            )
+            image_url = f'/news/{article.pk}/image/'
+            for path in ('/news/', f'/news/{article.pk}/'):
+                self.assertContains(self.client.get(path), f'src="{image_url}"')
+            detail = self.client.get(f'/news/{article.pk}/')
+            self.assertContains(detail, 'خبر <strong>هام</strong>')
+
+            photo = self.client.get(image_url)
+            try:
+                self.assertEqual(photo.status_code, 200)
+                self.assertEqual(photo['Content-Type'], 'image/png')
+                self.assertEqual(photo['X-Content-Type-Options'], 'nosniff')
+                self.assertEqual(b''.join(photo.streaming_content), image.getvalue())
+            finally:
+                photo.close()
+
+            article.published = False
+            article.save(update_fields=['published'])
+            self.assertEqual(self.client.get(image_url).status_code, 404)
+
+            article.published = True
+            article.featured_image.delete(save=False)
+            article.featured_image.name = 'news/missing.png'
+            article.save(update_fields=['published', 'featured_image'])
+            self.assertEqual(self.client.get(image_url).status_code, 404)
+
+    def test_news_upload_rejects_non_image_files(self):
+        from website.forms import NewsForm
+
+        form = NewsForm(
+            data={'title': 'خبر البلدية', 'body': '<p>إعلان</p>'},
+            files={'featured_image': SimpleUploadedFile('invalid.png', b'<html>test</html>')},
+        )
+        self.assertFalse(form.is_valid())
+        self.assertIn('featured_image', form.errors)
+
     def test_unsafe_markup_is_filtered_when_rendering_legacy_database_content(self):
         from website.models import NewsArticle
-        NewsArticle.objects.create(title='خبر', published=True, body='<p>خبر <strong>هام</strong></p><script>alert(1)</script>')
-        response = self.client.get('/news/')
+        article = NewsArticle.objects.create(title='خبر', published=True, body='<p>خبر <strong>هام</strong></p><script>alert(1)</script>')
+        listing = self.client.get('/news/')
+        self.assertContains(listing, 'خبر هام')
+        self.assertNotContains(listing, 'alert(1)')
+        response = self.client.get(f'/news/{article.pk}/')
         self.assertContains(response, '<strong>هام</strong>', html=True)
         self.assertNotContains(response, '<script>alert(1)</script>')
